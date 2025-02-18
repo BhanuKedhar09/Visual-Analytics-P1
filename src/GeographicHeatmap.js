@@ -1,145 +1,207 @@
 // GeographicHeatmap.js
-import React, { useRef, useState, useEffect, useContext } from 'react';
+import React, { useRef, useEffect, useContext, useState } from 'react';
 import * as d3 from 'd3';
 import { DataContext } from './DataLoader';
+import { InteractionContext } from './InteractionContext';
 
-function GeographicHeatmap({ width = 800, height = 500 }) {
-  const svgRef = useRef();
-  const { data, filterState } = useContext(DataContext);
+function GeographicHeatmap({ width = 600, height = 400 }) {
+  const svgRef = useRef(null);
+  const circlesRef = useRef(null);   // store the circle selection
+  const gMapRef = useRef(null);
 
-  // Start with a more modest default zoom so the entire US is visible
-  const [zoomLevel, setZoomLevel] = useState(1.0);
+  const [cities, setCities] = useState([]);
+  const [cityToDays, setCityToDays] = useState({}); // city => Set of dayNum
 
+  const { data } = useContext(DataContext);
+  const {
+    hoveredDay,
+    selectedDays,
+    hoveredCity, setHoveredCity,
+    selectedCities, setSelectedCities
+  } = useContext(InteractionContext);
+
+  /*******************************************
+   * 1) MOUNT EFFECT: parse data, draw map once
+   *******************************************/
   useEffect(() => {
     if (!data || data.length === 0) return;
 
-    const svg = d3.select(svgRef.current);
-    svg.selectAll('*').remove();
+    // 1) build city data
+    const cityMap = {};
+    data.forEach(d => {
+      if (!d.lat || !d.lng) return;
+      const c = d.Location;
+      if (!cityMap[c]) {
+        cityMap[c] = {
+          city: c,
+          lat: +d.lat,
+          lng: +d.lng,
+          count: 0,
+          days: new Set()
+        };
+      }
+      cityMap[c].count++;
+      const dayNum = +d3.timeDay(new Date(d.TransactionDate));
+      cityMap[c].days.add(dayNum);
+    });
+    const cityArr = Object.values(cityMap);
+    setCities(cityArr);
 
-    // Responsive SVG
-    svg
-      .attr('width', width)
-      .attr('height', height)
-      .attr('viewBox', `0 0 ${width} ${height}`)
-      .attr('preserveAspectRatio', 'xMidYMid meet');
+    // city->days map
+    const ctd = {};
+    for (const c of cityArr) {
+      ctd[c.city] = c.days;
+    }
+    setCityToDays(ctd);
 
-    // Lower the baseScale so we start more "zoomed out"
-    // e.g., (width + height) * 0.6
+    // 2) draw map
+    const svg = d3.select(svgRef.current)
+      .attr("width", width)
+      .attr("height", height);
+    svg.selectAll("*").remove();
+
+    const gMap = svg.append("g");
+    gMapRef.current = gMap;
+
     const baseScale = (width + height) * 0.6;
-
-    // Combine with zoomLevel
     const projection = d3.geoAlbersUsa()
       .translate([width / 2, height / 2])
-      .scale(baseScale * zoomLevel);
-
+      .scale(baseScale);
     const path = d3.geoPath().projection(projection);
 
-    // Load US states from public folder
     d3.json(process.env.PUBLIC_URL + '/gz_2010_us_040_00_500k.json')
       .then(usData => {
-        // Draw states
-        svg.append('g')
-          .selectAll('path')
+        gMap.selectAll("path")
           .data(usData.features)
           .enter()
-          .append('path')
-          .attr('d', path)
-          .attr('fill', '#f0f0f0')
-          .attr('stroke', '#ccc');
+          .append("path")
+          .attr("d", path)
+          .attr("fill", "#f0f0f0")
+          .attr("stroke", "#ccc");
 
-        // Filter data if filterState has date range
-        const filteredData = filterState && filterState.start && filterState.end
-          ? data.filter(d => {
-              const transDate = new Date(d.TransactionDate);
-              return transDate >= filterState.start && transDate <= filterState.end;
-            })
-          : data;
+        // circles
+        const maxCount = d3.max(cityArr, c => c.count) || 1;
+        const rScale = d3.scaleSqrt().domain([0, maxCount]).range([0, 20]);
 
-        // Aggregate by city
-        const cityMap = {};
-        filteredData.forEach(d => {
-          if (d.lat && d.lng) {
-            if (!cityMap[d.Location]) {
-              cityMap[d.Location] = {
-                city: d.Location,
-                lat: +d.lat,
-                lng: +d.lng,
-                count: 0
-              };
-            }
-            cityMap[d.Location].count += 1;
-          }
-        });
-        const cities = Object.values(cityMap);
-
-        // Radius scale
-        const maxCount = d3.max(cities, c => c.count) || 1;
-        const radiusScale = d3.scaleSqrt()
-          .domain([0, maxCount])
-          .range([0, 20]);
-
-        // Group for circles
-        const circlesGroup = svg.append('g');
-
-        // Tooltip
-        const tooltip = d3.select('body').append('div')
-          .attr('class', 'tooltip')
-          .style('position', 'absolute')
-          .style('padding', '6px')
-          .style('background', 'rgba(0,0,0,0.7)')
-          .style('color', '#fff')
-          .style('border-radius', '4px')
-          .style('pointer-events', 'none')
-          .style('opacity', 0);
-
-        // Draw circles
-        circlesGroup.selectAll('circle')
-          .data(cities)
+        const circleSel = gMap.selectAll("circle")
+          .data(cityArr)
           .enter()
-          .append('circle')
-          .attr('cx', d => {
+          .append("circle")
+          .attr("cx", d => {
             const coords = projection([d.lng, d.lat]);
             return coords ? coords[0] : -9999;
           })
-          .attr('cy', d => {
+          .attr("cy", d => {
             const coords = projection([d.lng, d.lat]);
             return coords ? coords[1] : -9999;
           })
-          .attr('r', d => radiusScale(d.count))
-          .attr('fill', 'orange')
-          .attr('fill-opacity', 0.6)
-          .attr('stroke', '#fff')
-          .attr('stroke-width', 1)
-          .on('mouseover', (event, d) => {
-            tooltip.transition().duration(200).style('opacity', 0.9);
-            tooltip.html(`<strong>${d.city}</strong><br/>Transactions: ${d.count}`)
-              .style('left', (event.pageX + 10) + 'px')
-              .style('top', (event.pageY - 28) + 'px');
+          .attr("r", d => rScale(d.count))
+          .attr("fill", "orange")
+          .attr("fill-opacity", 0.5)
+          .attr("stroke", "#fff")
+          .attr("stroke-width", 1)
+          // hover => setHoveredCity
+          .on("mouseover", (evt, d) => {
+            setHoveredCity(d.city);
           })
-          .on('mousemove', (event) => {
-            tooltip.style('left', (event.pageX + 10) + 'px')
-              .style('top', (event.pageY - 28) + 'px');
+          .on("mouseout", () => {
+            setHoveredCity(null);
           })
-          .on('mouseout', () => {
-            tooltip.transition().duration(500).style('opacity', 0);
+          // click => toggle city
+          .on("click", (evt, d) => {
+            evt.stopPropagation();
+            setSelectedCities(prev => {
+              const newSet = new Set(prev);
+              if (newSet.has(d.city)) newSet.delete(d.city);
+              else newSet.add(d.city);
+              return newSet;
+            });
           });
+
+        circlesRef.current = circleSel;
       })
-      .catch(err => console.error("Error loading us-states.json:", err));
+      .catch(err => console.error("Error loading map data:", err));
 
-    // Cleanup
-    return () => d3.selectAll('.tooltip').remove();
-  }, [data, filterState, width, height, zoomLevel]);
+    // 3) zoom
+    const zoomBehavior = d3.zoom()
+      .scaleExtent([1, 8])
+      .translateExtent([[0,0],[width,height]])
+      .on("zoom", (evt) => {
+        gMap.attr("transform", evt.transform);
+      });
+    svg.call(zoomBehavior);
 
-  return (
-    <div style={{ position: 'relative', width, height }}>
-      {/* Zoom Buttons */}
-      <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10 }}>
-        <button onClick={() => setZoomLevel(z => z * 1.2)} style={{ marginRight: '5px' }}>+</button>
-        <button onClick={() => setZoomLevel(z => z / 1.2)}>-</button>
-      </div>
-      <svg ref={svgRef} style={{ width: '100%', height: '100%' }} />
-    </div>
-  );
+  }, [data, width, height, setHoveredCity, setSelectedCities]);
+
+  /*********************************************
+   * 2) UPDATE EFFECT: hoveredDay/city, selected
+   *********************************************/
+  useEffect(() => {
+    if (!circlesRef.current || !cities.length) return;
+
+    const hoveredDayNum = hoveredDay ? +d3.timeDay(hoveredDay) : null;
+
+    circlesRef.current
+      .attr("fill", d => {
+        // default is orange
+        let fillColor = "orange";
+
+        // if city is selected => fill blue
+        if (selectedCities.has(d.city)) fillColor = "blue";
+        // else if city is hovered => fill red
+        else if (hoveredCity === d.city) fillColor = "red";
+
+        // if hoveredDay or selectedDays => see if city has that day
+        let matchesDay = false;
+        if (hoveredDayNum && d.days.has(hoveredDayNum)) {
+          matchesDay = true;
+          fillColor = "red";
+        }
+        for (const dayNum of selectedDays) {
+          if (d.days.has(dayNum)) {
+            matchesDay = true;
+            fillColor = "blue";
+            break;
+          }
+        }
+
+        // if we have a hoveredCity or hoveredDay, we might dim everything else
+        // but let's do that in fill-opacity logic
+        return fillColor;
+      })
+      .attr("fill-opacity", d => {
+        // if city is hovered or selected => higher
+        if (hoveredCity === d.city || selectedCities.has(d.city)) return 0.9;
+
+        // if city matches hoveredDay or selectedDays => medium
+        let matchedDay = false;
+        if (hoveredDayNum && d.days.has(hoveredDayNum)) matchedDay = true;
+        for (const dayNum of selectedDays) {
+          if (d.days.has(dayNum)) matchedDay = true;
+        }
+        if (matchedDay) return 0.7;
+
+        // otherwise if something is hovered or selected, dim
+        if (hoveredCity || hoveredDayNum || selectedCities.size || selectedDays.size) return 0.3;
+        return 0.5;
+      })
+      .attr("stroke", d => {
+        if (selectedCities.has(d.city) || hoveredCity === d.city) return "#333";
+        return "#fff";
+      })
+      .attr("stroke-width", d => {
+        if (selectedCities.has(d.city) || hoveredCity === d.city) return 2;
+        return 1;
+      });
+  }, [
+    hoveredDay, hoveredCity,
+    selectedDays, selectedCities,
+    cities
+  ]);
+
+  return <div style={{ position: 'relative', width, height }}>
+    <svg ref={svgRef} style={{ width: '100%', height: '100%' }} />
+  </div>;
 }
 
 export default GeographicHeatmap;
