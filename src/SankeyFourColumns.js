@@ -259,32 +259,100 @@ function SankeyFourColumns({
     drawSankey(nodes, sankeyLinks, width, height);
   }, [data, width, height, minFlow, nodeWidthPx, nodePaddingPx, maxMerchants]);
 
-  const drawSankey = useCallback(
+//   const drawSankey = useCallback(
+//     (nodeArray, linkArray, w, h) => {
+//       if (!svgRef.current) return;
+//       const svg = d3.select(svgRef.current);
+//       svg.selectAll("*").remove();
+
+//       // Custom alignment: use node.layer (0: left, 1: next, 2: next, 3: right)
+//       function customAlign(node) {
+//         return node.layer;
+//       }
+
+//       const sankeyGenerator = sankey()
+//         .nodeWidth(nodeWidthPx)
+//         .nodePadding(nodePaddingPx)
+//         .nodeAlign(customAlign)
+//         .extent([
+//           [0, 0],
+//           [w, h]
+//         ]);
+
+//       const sankeyData = { nodes: nodeArray, links: linkArray };
+//       const sankeyLayout = sankeyGenerator(sankeyData);
+
+//       // Draw links
+//       svg
+//         .append("g")
+//         .selectAll("path")
+//         .data(sankeyLayout.links)
+//         .enter()
+//         .append("path")
+//         .attr("fill", "none")
+//         .attr("stroke", "#999")
+//         .attr("stroke-opacity", 0.4)
+//         .attr("stroke-width", (d) => d.width)
+//         .attr("d", sankeyLinkHorizontal());
+
+//       // Draw nodes
+//       const nodeGroup = svg.append("g");
+//       nodeGroup
+//         .selectAll("rect")
+//         .data(sankeyLayout.nodes)
+//         .enter()
+//         .append("rect")
+//         .attr("x", (d) => d.x0)
+//         .attr("y", (d) => d.y0)
+//         .attr("width", (d) => d.x1 - d.x0)
+//         .attr("height", (d) => d.y1 - d.y0)
+//         .attr("fill", (d) => {
+//           if (d.layer === 0) return "#4E79A7"; // state
+//           if (d.layer === 1) return "#F28E2B"; // city
+//           if (d.layer === 2) return "#59A14F"; // occupation
+//           return "#E15759"; // merchant
+//         });
+
+//       // Draw labels (reduced font size)
+//       nodeGroup
+//         .selectAll("text")
+//         .data(sankeyLayout.nodes)
+//         .enter()
+//         .append("text")
+//         .attr("font-size", "10px")
+//         .attr("x", (d) => (d.layer === 3 ? d.x0 - 6 : d.x1 + 6))
+//         .attr("y", (d) => (d.y0 + d.y1) / 2)
+//         .attr("dy", "0.35em")
+//         .attr("text-anchor", (d) => (d.layer === 3 ? "end" : "start"))
+//         .text((d) => d.name);
+//     },
+//     [svgRef, nodeWidthPx, nodePaddingPx]
+//   );
+// Inside your drawSankey function in SankeyFourColumns.js
+
+const drawSankey = useCallback(
     (nodeArray, linkArray, w, h) => {
       if (!svgRef.current) return;
       const svg = d3.select(svgRef.current);
       svg.selectAll("*").remove();
-
+  
       // Custom alignment: use node.layer (0: left, 1: next, 2: next, 3: right)
       function customAlign(node) {
         return node.layer;
       }
-
+  
       const sankeyGenerator = sankey()
         .nodeWidth(nodeWidthPx)
         .nodePadding(nodePaddingPx)
         .nodeAlign(customAlign)
-        .extent([
-          [0, 0],
-          [w, h]
-        ]);
-
+        .extent([[0, 0], [w, h]]);
+  
       const sankeyData = { nodes: nodeArray, links: linkArray };
       const sankeyLayout = sankeyGenerator(sankeyData);
-
+  
       // Draw links
-      svg
-        .append("g")
+      const linkGroup = svg.append("g");
+      const linkElements = linkGroup
         .selectAll("path")
         .data(sankeyLayout.links)
         .enter()
@@ -293,11 +361,22 @@ function SankeyFourColumns({
         .attr("stroke", "#999")
         .attr("stroke-opacity", 0.4)
         .attr("stroke-width", (d) => d.width)
-        .attr("d", sankeyLinkHorizontal());
-
+        .attr("d", sankeyLinkHorizontal())
+        // Interaction for links: on hover, highlight that link only.
+        .on("mouseover", function(event, d) {
+          d3.select(this)
+            .attr("stroke", "red")
+            .attr("stroke-opacity", 1);
+        })
+        .on("mouseout", function(event, d) {
+          d3.select(this)
+            .attr("stroke", "#999")
+            .attr("stroke-opacity", 0.4);
+        });
+  
       // Draw nodes
       const nodeGroup = svg.append("g");
-      nodeGroup
+      const nodeElements = nodeGroup
         .selectAll("rect")
         .data(sankeyLayout.nodes)
         .enter()
@@ -311,9 +390,30 @@ function SankeyFourColumns({
           if (d.layer === 1) return "#F28E2B"; // city
           if (d.layer === 2) return "#59A14F"; // occupation
           return "#E15759"; // merchant
+        })
+        // Interaction for nodes: on hover, highlight all connected links.
+        .on("mouseover", function(event, d) {
+          // Highlight links where the node is either the source or target.
+          svg.selectAll("path")
+            .attr("stroke", (link) => {
+              return (link.source.index === d.index || link.target.index === d.index)
+                ? "red"
+                : "#999";
+            })
+            .attr("stroke-opacity", (link) => {
+              return (link.source.index === d.index || link.target.index === d.index)
+                ? 1
+                : 0.4;
+            });
+        })
+        .on("mouseout", function(event, d) {
+          // Revert all link styles.
+          svg.selectAll("path")
+            .attr("stroke", "#999")
+            .attr("stroke-opacity", 0.4);
         });
-
-      // Draw labels (reduced font size)
+  
+      // Draw labels with reduced font size
       nodeGroup
         .selectAll("text")
         .data(sankeyLayout.nodes)
@@ -328,7 +428,6 @@ function SankeyFourColumns({
     },
     [svgRef, nodeWidthPx, nodePaddingPx]
   );
-
   useEffect(() => {
     renderSankey();
   }, [renderSankey]);
