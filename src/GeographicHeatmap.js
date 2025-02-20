@@ -4,7 +4,7 @@ import * as d3 from 'd3';
 import { DataContext } from './DataLoader';
 import { InteractionContext } from './InteractionContext';
 
-function GeographicHeatmap({ width = 600, height = 400 }) {
+function GeographicHeatmap({ width = 1200, height = 800 }) {
   const svgRef = useRef(null);
   const circlesRef = useRef(null);   // store the circle selection
   const gMapRef = useRef(null);
@@ -63,7 +63,7 @@ function GeographicHeatmap({ width = 600, height = 400 }) {
     const gMap = svg.append("g");
     gMapRef.current = gMap;
 
-    const baseScale = (width + height) * 0.6;
+    const baseScale = (width + height) * 0.75;
     const projection = d3.geoAlbersUsa()
       .translate([width / 2, height / 2])
       .scale(baseScale);
