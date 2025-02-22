@@ -5,19 +5,10 @@ import { DataProvider } from "./DataLoader";
 import { InteractionProvider } from "./InteractionContext";
 import TimeHistogram from "./TimeHistogram";
 import GeographicHeatmap from "./GeographicHeatmap";
-// import RadialNetwork from "./RadialNetwork"; // Updated component
 import AIChatPlaceholder from "./AIChatPlaceholder";
 import SleekWidget from "./SleekWidget";
-import RadialNetwork from "./RadialNetwork";
-import BipartiteForceNetwork from "./BipartiteForceNetwork";
 import CircleBipartite from "./CircleBipartite";
-// import FourLevelSankey from "./FourLevelSankey";
-// import TwoLevelSankey from "./TwoLevelSankey";
-// import BasicSankey from "./BasicSankey";
-// import StateCitySankey from "./StateCitySankey";
-// import StateCitySankeyDebug from "./StateCitySankeyDebug";
-// import StateCitySankeyTwoColumns from "./StateCitySankeyTwoColumns";
-import StateCitySankeySorted from "./StateCitySankeySorted";
+// import StateCitySankeySorted from "./StateCitySankeySorted";
 import SankeyFourColumns from "./SankeyFourColumns";
 
 function App() {
@@ -49,7 +40,7 @@ function App() {
           </SleekWidget>
           <SleekWidget
             title="Stacked Chart"
-            initialWidth={1000}
+            initialWidth={1110}
             initialHeight={300}
             initialX={440}
             initialY={0}
@@ -84,7 +75,7 @@ function App() {
             title="State → City → Occupation → Merchant"
             initialWidth={440}
             initialHeight={950}
-            initialX={1450}
+            initialX={1560}
             initialY={1}
           >
             <SankeyFourColumns
