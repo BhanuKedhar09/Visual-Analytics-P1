@@ -8,50 +8,57 @@ function TimeHistogram({ width = 1000, height = 300 }) {
   const svgRef = useRef(null);
   const barsRef = useRef(null);
 
-  // We'll keep the final processed data in state so we can reference it in the update effect
+  // Final processed data for the stacked chart
   const [histData, setHistData] = useState([]);
 
-  // day => Set of states, cities, occupations, merchants
+  // Mappings for cross-view linking (day → sets of states/cities/occupations/merchants)
   const [dayToStates, setDayToStates] = useState({});
   const [dayToCities, setDayToCities] = useState({});
   const [dayToOccupations, setDayToOccupations] = useState({});
   const [dayToMerchants, setDayToMerchants] = useState({});
-
+  // const [selectedSankeyNodes, setSelectedSankeyNodes] = useState(new Set());
   const { data } = useContext(DataContext);
+
+  // From InteractionContext:
+  // hoveredDay => ephemeral day hover
+  // selectedDays => persistent day selection
+  // hoveredCity, hoveredSankey => cross-view ephemeral signals
+  // selectedCities => if you want persistent city selection
   const {
     hoveredDay, setHoveredDay,
+    selectedDays, setSelectedDays,
     hoveredCity,
     hoveredSankey,
-    selectedDays, setSelectedDays,
-    selectedCities
+    selectedCities,
+    selectedSankeyNodes
   } = useContext(InteractionContext);
 
   /***************************************************
-   * 1) MOUNT EFFECT: parse data, draw chart once
+   * 1) MOUNT EFFECT: parse data & draw chart once
    ***************************************************/
   useEffect(() => {
     if (!data || data.length === 0) return;
 
-    // 1) Parse transaction dates
+    // Parse transaction dates
     const parseTime = d3.timeParse("%Y-%m-%d %H:%M:%S");
-    const processed = data.map(d => ({
+    const processed = data.map((d) => ({
       ...d,
       TransactionDate: parseTime(d.TransactionDate),
     }));
     processed.sort((a, b) => a.TransactionDate - b.TransactionDate);
 
-    // 2) Build day-based histogram (Credit vs. Debit counts)
+    // Build day-based histogram
     const dayRoll = d3.rollup(
       processed,
-      txs => {
+      (txs) => {
         const c = { Credit: 0, Debit: 0 };
-        txs.forEach(tx => {
+        txs.forEach((tx) => {
           if (tx.TransactionType === "Credit") c.Credit++;
           else if (tx.TransactionType === "Debit") c.Debit++;
         });
         return c;
       },
-      d => d3.timeDay(d.TransactionDate)
+      (d) => d3.timeDay(d.TransactionDate)
     );
     let hist = Array.from(dayRoll, ([date, counts]) => ({ date, ...counts }));
     hist.sort((a, b) => a.date - b.date);
@@ -59,161 +66,219 @@ function TimeHistogram({ width = 1000, height = 300 }) {
     // Fill missing days
     hist = fillMissingDays(hist);
     function fillMissingDays(arr) {
-      const minDate = d3.min(arr, d => d.date);
-      const maxDate = d3.max(arr, d => d.date);
+      const minDate = d3.min(arr, (d) => d.date);
+      const maxDate = d3.max(arr, (d) => d.date);
       const out = [];
-      let current = new Date(minDate);
-      while (current <= maxDate) {
-        const existing = arr.find(x => +x.date === +current);
+      let cur = new Date(minDate);
+      while (cur <= maxDate) {
+        const existing = arr.find((x) => +x.date === +cur);
         if (existing) out.push(existing);
-        else out.push({ date: new Date(current), Credit: 0, Debit: 0 });
-        current.setDate(current.getDate() + 1);
+        else out.push({ date: new Date(cur), Credit: 0, Debit: 0 });
+        cur.setDate(cur.getDate() + 1);
       }
       return out;
     }
     setHistData(hist);
 
-    // 3) Build day->states, day->cities, day->occupations, day->merchants
+    // day → states/cities/occupations/merchants
     const dts = {};
     const dtc = {};
     const dto = {};
     const dtm = {};
-
-    processed.forEach(d => {
+    processed.forEach((d) => {
       const dayNum = +d3.timeDay(d.TransactionDate);
-
-      // dayToStates
       if (!dts[dayNum]) dts[dayNum] = new Set();
-      dts[dayNum].add(d.state_id);  // e.g. "TX", "CA"
+      dts[dayNum].add(d.state_id);
 
-      // dayToCities
       if (!dtc[dayNum]) dtc[dayNum] = new Set();
       dtc[dayNum].add(d.Location);
 
-      // dayToOccupations
       if (!dto[dayNum]) dto[dayNum] = new Set();
       dto[dayNum].add(d.CustomerOccupation);
 
-      // dayToMerchants
       if (!dtm[dayNum]) dtm[dayNum] = new Set();
       dtm[dayNum].add(d.MerchantID);
     });
-
     setDayToStates(dts);
     setDayToCities(dtc);
     setDayToOccupations(dto);
     setDayToMerchants(dtm);
 
-    // 4) Draw the stacked bar chart
+    // Draw the stacked bars
     drawHistogram(hist);
   }, [data]);
 
   /*****************************************************
-   * 2) UPDATE EFFECT: style bars based on interactions
+   * 2) UPDATE EFFECT: color bars based on interactions
    *****************************************************/
   useEffect(() => {
-    if (!barsRef.current || histData.length === 0) return;
+    if (!barsRef.current || !histData.length) return;
 
-    // If day is hovered
+    // Convert hoveredDay to numeric day for easy comparison
     const hoveredDayNum = hoveredDay ? +d3.timeDay(hoveredDay) : null;
 
-    // Check hoveredSankey layer => which item is hovered
-    let hoveredState = null;      // layer=0
-    let hoveredCityName = null;   // layer=1
-    let hoveredOccupation = null; // layer=2
-    let hoveredMerchant = null;   // layer=3
-
+    // If there is a hovered Sankey node, parse it
+    let hoveredSankeyLayer = null;
+    let hoveredSankeyName = null;
     if (hoveredSankey) {
-      if (hoveredSankey.layer === 0) {
-        hoveredState = hoveredSankey.name;
-      } else if (hoveredSankey.layer === 1) {
-        hoveredCityName = hoveredSankey.name;
-      } else if (hoveredSankey.layer === 2) {
-        hoveredOccupation = hoveredSankey.name;
-      } else if (hoveredSankey.layer === 3) {
-        hoveredMerchant = hoveredSankey.name;
-      }
+      hoveredSankeyLayer = hoveredSankey.layer;
+      hoveredSankeyName = hoveredSankey.name;
     }
 
     barsRef.current
       .attr("fill", (d) => {
-        // default color based on stacked key
-        let c = d.key === "Credit" ? "#4E79A7" : "#F28E2B";
+        // Default color depends on transaction type
+        const defColor = d.key === "Credit" ? "#4E79A7" : "#F28E2B";
         const dayNum = +d3.timeDay(histData[d.index].date);
 
-        // If day is selected => fill blue
-        if (selectedDays.has(dayNum)) return "blue";
-        // If day is hovered => fill red
-        if (hoveredDayNum === dayNum) return "red";
-
-        // now check states, cities, occupations, merchants
-        const stateSet = dayToStates[dayNum];
-        const citySet = dayToCities[dayNum];
-        const occupSet = dayToOccupations[dayNum];
-        const merchSet = dayToMerchants[dayNum];
-
-        // If hoveredState => highlight if stateSet includes hoveredState
-        if (hoveredState && stateSet && stateSet.has(hoveredState)) {
-          c = "red";
+        // 1) Check ephemeral (hover) conditions first => RED
+        //    (like your map circles do)
+        if (hoveredDayNum === dayNum) {
+          // If this day is hovered in the histogram
+          return "red";
         }
-        // If hoveredCityName => highlight if citySet includes it
-        if (hoveredCityName && citySet && citySet.has(hoveredCityName)) {
-          c = "red";
+        if (hoveredCity && dayToCities[dayNum]?.has(hoveredCity)) {
+          // If this bar's day has the hovered city from the map
+          return "red";
         }
-        // If hoveredOccupation => highlight if occupSet includes it
-        if (hoveredOccupation && occupSet && occupSet.has(hoveredOccupation)) {
-          c = "red";
-        }
-        // If hoveredMerchant => highlight if merchSet includes it
-        if (hoveredMerchant && merchSet && merchSet.has(hoveredMerchant)) {
-          c = "red";
-        }
-
-        // If hoveredCity from other views => highlight if citySet has it
-        if (hoveredCity && citySet && citySet.has(hoveredCity)) {
-          c = "red";
-        }
-
-        // If we have selectedCities => highlight if day includes them
-        for (const sc of selectedCities) {
-          if (citySet && citySet.has(sc)) {
-            c = "blue";
-            break;
+        if (hoveredSankeyLayer !== null && hoveredSankeyName) {
+          // If we have a hovered Sankey node, see if this bar's day has that item
+          if (
+            hoveredSankeyLayer === 0 &&
+            dayToStates[dayNum]?.has(hoveredSankeyName)
+          ) {
+            return "red";
+          }
+          if (
+            hoveredSankeyLayer === 1 &&
+            dayToCities[dayNum]?.has(hoveredSankeyName)
+          ) {
+            return "red";
+          }
+          if (
+            hoveredSankeyLayer === 2 &&
+            dayToOccupations[dayNum]?.has(hoveredSankeyName)
+          ) {
+            return "red";
+          }
+          if (
+            hoveredSankeyLayer === 3 &&
+            dayToMerchants[dayNum]?.has(hoveredSankeyName)
+          ) {
+            return "red";
           }
         }
 
-        return c;
+        // 2) Check persistent (selected) conditions => BLUE
+        //    If any apply, color it blue
+        if (selectedDays.has(dayNum)) {
+          return "blue";
+        }
+        // If day has any selected city from the map
+        for (const city of selectedCities) {
+          if (dayToCities[dayNum]?.has(city)) {
+            return "blue";
+          }
+        }
+        // If day has any selected Sankey node
+        for (const sankeyNodeKey of selectedSankeyNodes) {
+          const [layer, name] = sankeyNodeKey.split("||");
+          if (layer === "0" && dayToStates[dayNum]?.has(name)) {
+            return "blue";
+          }
+          if (layer === "1" && dayToCities[dayNum]?.has(name)) {
+            return "blue";
+          }
+          if (layer === "2" && dayToOccupations[dayNum]?.has(name)) {
+            return "blue";
+          }
+          if (layer === "3" && dayToMerchants[dayNum]?.has(name)) {
+            return "blue";
+          }
+        }
+
+        // 3) If no ephemeral or persistent condition => default color
+        return defColor;
       })
       .attr("fill-opacity", (d) => {
+        // Optional: dim bars not relevant to any hover/selection
+        // to mimic the map approach of .3 vs .9
         const dayNum = +d3.timeDay(histData[d.index].date);
-        if (selectedDays.has(dayNum) || hoveredDayNum === dayNum) return 1;
 
-        let relevant = false;
-        const stateSet = dayToStates[dayNum];
-        const citySet = dayToCities[dayNum];
-        const occupSet = dayToOccupations[dayNum];
-        const merchSet = dayToMerchants[dayNum];
+        // We'll see if it's relevant to any ephemeral or persistent condition
+        let isRelevant = false;
 
-        if (hoveredState && stateSet && stateSet.has(hoveredState)) relevant = true;
-        if (hoveredCityName && citySet && citySet.has(hoveredCityName)) relevant = true;
-        if (hoveredCity && citySet && citySet.has(hoveredCity)) relevant = true;
-        if (hoveredOccupation && occupSet && occupSet.has(hoveredOccupation)) relevant = true;
-        if (hoveredMerchant && merchSet && merchSet.has(hoveredMerchant)) relevant = true;
-
-        for (const sc of selectedCities) {
-          if (citySet && citySet.has(sc)) relevant = true;
+        // ephemeral check
+        if (hoveredDayNum === dayNum) isRelevant = true;
+        if (hoveredCity && dayToCities[dayNum]?.has(hoveredCity))
+          isRelevant = true;
+        if (hoveredSankeyLayer !== null && hoveredSankeyName) {
+          if (
+            hoveredSankeyLayer === 0 &&
+            dayToStates[dayNum]?.has(hoveredSankeyName)
+          )
+            isRelevant = true;
+          if (
+            hoveredSankeyLayer === 1 &&
+            dayToCities[dayNum]?.has(hoveredSankeyName)
+          )
+            isRelevant = true;
+          if (
+            hoveredSankeyLayer === 2 &&
+            dayToOccupations[dayNum]?.has(hoveredSankeyName)
+          )
+            isRelevant = true;
+          if (
+            hoveredSankeyLayer === 3 &&
+            dayToMerchants[dayNum]?.has(hoveredSankeyName)
+          )
+            isRelevant = true;
         }
 
-        if (relevant) return 0.9;
-        if (hoveredDayNum || hoveredState || hoveredCityName || hoveredCity || hoveredOccupation || hoveredMerchant || selectedCities.size || selectedDays.size) {
+        // persistent check
+        if (selectedDays.has(dayNum)) isRelevant = true;
+        for (const city of selectedCities) {
+          if (dayToCities[dayNum]?.has(city)) isRelevant = true;
+        }
+        for (const sankeyNodeKey of selectedSankeyNodes) {
+          const [layer, name] = sankeyNodeKey.split("||");
+          if (layer === "0" && dayToStates[dayNum]?.has(name))
+            isRelevant = true;
+          if (layer === "1" && dayToCities[dayNum]?.has(name))
+            isRelevant = true;
+          if (layer === "2" && dayToOccupations[dayNum]?.has(name))
+            isRelevant = true;
+          if (layer === "3" && dayToMerchants[dayNum]?.has(name))
+            isRelevant = true;
+        }
+
+        // If relevant => full opacity, else if something is hovered/selected => dim
+        if (isRelevant) return 1;
+        if (
+          hoveredDayNum !== null ||
+          hoveredCity ||
+          hoveredSankeyLayer !== null ||
+          selectedDays.size > 0 ||
+          selectedCities.size > 0 ||
+          selectedSankeyNodes.size > 0
+        ) {
           return 0.3;
         }
+        // Otherwise, if nothing is hovered/selected => normal
         return 1;
       });
   }, [
-    hoveredDay, hoveredCity, hoveredSankey,
-    selectedDays, selectedCities,
-    histData, dayToStates, dayToCities, dayToOccupations, dayToMerchants
+    hoveredDay,
+    selectedDays,
+    hoveredCity,
+    selectedCities,
+    hoveredSankey,
+    selectedSankeyNodes,
+    histData,
+    dayToStates,
+    dayToCities,
+    dayToOccupations,
+    dayToMerchants,
   ]);
 
   function drawHistogram(hist) {
@@ -230,49 +295,54 @@ function TimeHistogram({ width = 1000, height = 300 }) {
       .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    const xScale = d3.scaleTime()
-      .domain(d3.extent(hist, d => d.date))
+    const xScale = d3
+      .scaleTime()
+      .domain(d3.extent(hist, (d) => d.date))
       .range([0, innerW]);
-    const maxY = d3.max(hist, d => d.Credit + d.Debit) || 1;
-    const yScale = d3.scaleLinear()
-      .domain([0, maxY])
-      .nice()
-      .range([innerH, 0]);
+    const maxY = d3.max(hist, (d) => d.Credit + d.Debit) || 0;
+    const yScale = d3.scaleLinear().domain([0, maxY]).nice().range([innerH, 0]);
 
     // x-axis
     g.append("g")
       .attr("transform", `translate(0,${innerH})`)
+      .attr("class", "x-axis")
       .call(d3.axisBottom(xScale).ticks(10).tickFormat(d3.timeFormat("%b %d")));
 
     // y-axis
     g.append("g").call(d3.axisLeft(yScale).ticks(6));
 
-    // stacked bars
+    // Build stacked data
     const stackGen = d3.stack().keys(["Credit", "Debit"]);
     const series = stackGen(hist);
 
-    const layer = g.selectAll(".layer")
+    const layer = g
+      .selectAll(".layer")
       .data(series)
       .enter()
       .append("g")
       .attr("class", "layer");
 
-    const color = d3.scaleOrdinal()
+    const colorScale = d3
+      .scaleOrdinal()
       .domain(["Credit", "Debit"])
       .range(["#4E79A7", "#F28E2B"]);
 
-    const rectSel = layer.selectAll("rect")
-      .data(d => d.map((point, index) => ({ point, index, key: d.key })))
+    const rectSel = layer
+      .selectAll("rect")
+      .data((d) => d.map((point, index) => ({ point, index, key: d.key })))
       .enter()
       .append("rect")
-      .attr("x", d => xScale(hist[d.index].date) - computeBarWidth(hist, xScale)/2)
-      .attr("width", d => computeBarWidth(hist, xScale))
-      .attr("y", d => yScale(d.point[1]))
-      .attr("height", d => yScale(d.point[0]) - yScale(d.point[1]))
-      .attr("fill", d => color(d.key))
+      .attr(
+        "x",
+        (d) => xScale(hist[d.index].date) - computeBarWidth(hist, xScale) / 2
+      )
+      .attr("width", (d) => computeBarWidth(hist, xScale))
+      .attr("y", (d) => yScale(d.point[1]))
+      .attr("height", (d) => yScale(d.point[0]) - yScale(d.point[1]))
+      .attr("fill", (d) => colorScale(d.key))
       .attr("stroke", "#fff")
       .attr("stroke-width", 0.5)
-      // On hover => update hoveredDay
+      // ephemeral day hover => set hoveredDay
       .on("mouseover", (evt, d) => {
         const day = hist[d.index].date;
         setHoveredDay(day);
@@ -280,11 +350,11 @@ function TimeHistogram({ width = 1000, height = 300 }) {
       .on("mouseout", () => {
         setHoveredDay(null);
       })
-      // On click => toggle day selection
+      // persistent day selection => toggle in selectedDays
       .on("click", (evt, d) => {
         evt.stopPropagation();
         const dayNum = +d3.timeDay(hist[d.index].date);
-        setSelectedDays(prev => {
+        setSelectedDays((prev) => {
           const newSet = new Set(prev);
           if (newSet.has(dayNum)) newSet.delete(dayNum);
           else newSet.add(dayNum);
@@ -294,15 +364,25 @@ function TimeHistogram({ width = 1000, height = 300 }) {
     barsRef.current = rectSel;
 
     // Zoom
-    const zoomBehavior = d3.zoom()
+    const zoomBehavior = d3
+      .zoom()
       .scaleExtent([1, 10])
-      .translateExtent([[0, 0], [innerW, innerH]])
-      .extent([[0, 0], [innerW, innerH]])
-      .on("zoom", evt => {
+      .translateExtent([
+        [0, 0],
+        [innerW, innerH],
+      ])
+      .extent([
+        [0, 0],
+        [innerW, innerH],
+      ])
+      .on("zoom", (evt) => {
         const newX = evt.transform.rescaleX(xScale);
         rectSel
-          .attr("x", dd => newX(hist[dd.index].date) - computeBarWidth(hist, newX)/2)
-          .attr("width", dd => computeBarWidth(hist, newX));
+          .attr(
+            "x",
+            (dd) => newX(hist[dd.index].date) - computeBarWidth(hist, newX) / 2
+          )
+          .attr("width", (dd) => computeBarWidth(hist, newX));
         g.select(".x-axis").call(d3.axisBottom(newX).ticks(10));
       });
     svg.call(zoomBehavior);
@@ -312,7 +392,7 @@ function TimeHistogram({ width = 1000, height = 300 }) {
     if (arr.length < 2) return 20;
     let totalGap = 0;
     for (let i = 0; i < arr.length - 1; i++) {
-      totalGap += scaleFn(arr[i+1].date) - scaleFn(arr[i].date);
+      totalGap += scaleFn(arr[i + 1].date) - scaleFn(arr[i].date);
     }
     const avgGap = totalGap / (arr.length - 1);
     return Math.max(3, Math.min(avgGap * 0.8, 20));
