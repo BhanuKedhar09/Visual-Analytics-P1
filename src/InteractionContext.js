@@ -8,7 +8,9 @@ export function InteractionProvider({ children }) {
   const [hoveredCity, setHoveredCity] = useState(null);    // string or null
   const [selectedDays, setSelectedDays] = useState(new Set());
   const [selectedCities, setSelectedCities] = useState(new Set());
-
+  const [hoveredSankey, setHoveredSankey] = useState(null);
+  const [hoveredSankeyLink, setHoveredSankeyLink] = useState(null);
+  const [selectedSankeyNodes, setSelectedSankeyNodes] = useState(new Set());
   function resetSelections() {
     setHoveredDay(null);
     setHoveredCity(null);
@@ -22,6 +24,11 @@ export function InteractionProvider({ children }) {
       hoveredCity, setHoveredCity,
       selectedDays, setSelectedDays,
       selectedCities, setSelectedCities,
+      hoveredSankey,
+      setHoveredSankey,
+      hoveredSankeyLink,
+      setHoveredSankeyLink,
+      selectedSankeyNodes, setSelectedSankeyNodes,
       resetSelections
     }}>
       {children}
