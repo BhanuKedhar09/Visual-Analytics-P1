@@ -36,3 +36,34 @@
     transform: rotate(360deg);
   }
 }
+
+/* Make the context menu look modern */
+.custom-context-menu {
+  position: absolute;
+  background: #fff;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  padding: 6px 10px;
+  font-size: 14px;
+  font-family: Arial, sans-serif;
+  color: #333;
+  z-index: 99999;
+}
+
+.custom-context-menu .menu-item {
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.custom-context-menu .menu-item:hover {
+  background: #eee;
+}
+
+.cloned-node-div {
+  transition: box-shadow 0.2s ease;
+}
+
+.cloned-node-div:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}

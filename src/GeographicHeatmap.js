@@ -247,73 +247,6 @@ function GeographicHeatmap({ width = 1200, height = 800 }) {
     svg.call(zoomBehavior);
   }, [data, width, height, setHoveredCity, setSelectedCities]);
 
-  /*********************************************
-   * 2) UPDATE EFFECT: hoveredDay/city, selected
-   *********************************************/
-  // useEffect(() => {
-  //   if (!circlesRef.current || !cities.length) return;
-
-  //   const hoveredDayNum = hoveredDay ? +d3.timeDay(hoveredDay) : null;
-
-  //   circlesRef.current
-  //     .attr("fill", (d) => {
-  //       // default is orange
-  //       let fillColor = "orange";
-
-  //       // if city is selected => fill blue
-  //       if (selectedCities.has(d.city)) fillColor = "blue";
-  //       // else if city is hovered => fill red
-  //       else if (hoveredCity === d.city) fillColor = "red";
-
-  //       // if hoveredDay or selectedDays => see if city has that day
-  //       let matchesDay = false;
-  //       if (hoveredDayNum && d.days.has(hoveredDayNum)) {
-  //         matchesDay = true;
-  //         fillColor = "red";
-  //       }
-  //       for (const dayNum of selectedDays) {
-  //         if (d.days.has(dayNum)) {
-  //           matchesDay = true;
-  //           fillColor = "blue";
-  //           break;
-  //         }
-  //       }
-
-  //       // if we have a hoveredCity or hoveredDay, we might dim everything else
-  //       // but let's do that in fill-opacity logic
-  //       return fillColor;
-  //     })
-  //     .attr("fill-opacity", (d) => {
-  //       // if city is hovered or selected => higher
-  //       if (hoveredCity === d.city || selectedCities.has(d.city)) return 0.9;
-
-  //       // if city matches hoveredDay or selectedDays => medium
-  //       let matchedDay = false;
-  //       if (hoveredDayNum && d.days.has(hoveredDayNum)) matchedDay = true;
-  //       for (const dayNum of selectedDays) {
-  //         if (d.days.has(dayNum)) matchedDay = true;
-  //       }
-  //       if (matchedDay) return 0.7;
-
-  //       // otherwise if something is hovered or selected, dim
-  //       if (
-  //         hoveredCity ||
-  //         hoveredDayNum ||
-  //         selectedCities.size ||
-  //         selectedDays.size
-  //       )
-  //         return 0.3;
-  //       return 0.5;
-  //     })
-  //     .attr("stroke", (d) => {
-  //       if (selectedCities.has(d.city) || hoveredCity === d.city) return "#333";
-  //       return "#fff";
-  //     })
-  //     .attr("stroke-width", (d) => {
-  //       if (selectedCities.has(d.city) || hoveredCity === d.city) return 2;
-  //       return 1;
-  //     });
-  // }, [hoveredDay, hoveredCity, selectedDays, selectedCities, cities]);
   useEffect(() => {
     if (!circlesRef.current || !cities.length) return;
   
@@ -332,6 +265,20 @@ function GeographicHeatmap({ width = 1200, height = 800 }) {
           fillColor = "blue";
         }
         
+         // if hoveredDay or selectedDays => see if city has that day
+         let matchesDay = false;
+         if (hoveredDayNum && d.days.has(hoveredDayNum)) {
+           matchesDay = true;
+           fillColor = "red";
+         }
+         for (const dayNum of selectedDays) {
+           if (d.days.has(dayNum)) {
+             matchesDay = true;
+             fillColor = "blue";
+             break;
+           }
+         }
+         
         // Cross-view (from Sankey): 
         // if a Sankey state node is hovered and matches this city's state → red.
         if (hoveredSankey && hoveredSankey.layer === 0 && hoveredSankey.name === d.state) {

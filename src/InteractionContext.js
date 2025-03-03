@@ -12,8 +12,7 @@ export function InteractionProvider({ children }) {
   const [hoveredSankeyLink, setHoveredSankeyLink] = useState(null);
   const [selectedSankeyNodes, setSelectedSankeyNodes] = useState(new Set());
 
-  // Reset all interaction states
-  const resetSelections = () => {
+  function resetSelections() {
     setHoveredDay(null);
     setHoveredCity(null);
     setSelectedDays(new Set());
@@ -21,7 +20,7 @@ export function InteractionProvider({ children }) {
     setHoveredSankey(null);
     setHoveredSankeyLink(null);
     setSelectedSankeyNodes(new Set());
-  };
+  }
 
   return (
     <InteractionContext.Provider value={{
