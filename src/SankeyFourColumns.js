@@ -29,6 +29,10 @@ function SankeyFourColumns({
     setHighlightedState,
     highlightedCity,
     setHighlightedCity,
+    timeHighlightedState,
+    setTimeHighlightedState,
+    timeHighlightedCity,
+    setTimeHighlightedCity,
   } = useContext(InteractionContext);
 
   const containerRef = useRef(null);
@@ -373,13 +377,22 @@ function SankeyFourColumns({
       const handleNodeDrop = (nodeData, containerBox, dropZone) => {
         console.log("Node dropped:", nodeData, containerBox, dropZone);
         if (!dropZone) {
-          console.log("No drop zone detected—returning.");
+          console.log("No drop zone detected—returning.", dropZone);
+          // Reset the highlights so that if the user drags outside any valid zone,
+          // the highlight variables are cleared.
+          setHighlightedState(null);
+          setHighlightedCity(null);
+          setTimeHighlightedState(null);
+          setTimeHighlightedCity(null);
+
           return;
         } // Not dropped over any target
 
         // Example logic: check the id of the drop zone
         if (dropZone.id === "geo-map") {
           // If a state node (layer 0), highlight all circles for that state.
+          setTimeHighlightedState(null);
+          setTimeHighlightedCity(null);
           if (nodeData.layer === 0) {
             console.log("Setting highlightedState =>", nodeData.name);
             // For instance: call your context setter or a function to highlight state circles.
@@ -394,16 +407,13 @@ function SankeyFourColumns({
             // console.log("Highlight circle for city:", nodeData.name);
           }
         } else if (dropZone.id === "time-graph") {
-          // Highlight the bars corresponding to the node's data.
-          // highlightTimeData(nodeData.name, nodeData.layer);
-          console.log("Highlight time data for:", nodeData.name);
+          console.log("came into timegraph");
+          setHighlightedState(null);
+          setHighlightedCity(null);
           if (nodeData.layer === 0) {
-            console.log("Setting highlightedState =>", nodeData.name);
-            setHighlightedState(nodeData.name);
-            // console.log("Highlight time data for state:", nodeData.name);
+            setTimeHighlightedState(nodeData.name);
           } else if (nodeData.layer === 1) {
-            console.log("Setting highlightedCity =>", nodeData.name);
-            setHighlightedCity(nodeData.name);
+            setTimeHighlightedCity(nodeData.name);
             // console.log("Highlight time data for city:", nodeData.name);
           }
         }

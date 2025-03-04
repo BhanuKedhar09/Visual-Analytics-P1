@@ -17,6 +17,9 @@ export function InteractionProvider({ children }) {
     highlightedState: null,
     highlightedCity: null,
 });
+const [timeHighlightedState, setTimeHighlightedState] = useState(null);
+const [timeHighlightedCity, setTimeHighlightedCity] = useState(null);
+
 
 const updateInteractionContext = (updates) => {
   setInteractionState((prev) => ({ ...prev, ...updates }));
@@ -37,6 +40,8 @@ const updateInteractionContext = (updates) => {
     setSelectedSankeyNodes(new Set());
     setHighlightedState(null);
     setHighlightedCity(null);
+    setTimeHighlightedState(null);
+    setTimeHighlightedCity(null);
   }
 
   return (
@@ -61,6 +66,11 @@ const updateInteractionContext = (updates) => {
         highlightedCity,
         setHighlightedCity,
         resetSelections,
+        timeHighlightedState,
+        setTimeHighlightedState,
+        timeHighlightedCity,
+        setTimeHighlightedCity,
+        // interactionState,
       }}
     >
       {children}

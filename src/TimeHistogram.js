@@ -4,7 +4,12 @@ import * as d3 from "d3";
 import { DataContext } from "./DataLoader";
 import { InteractionContext } from "./InteractionContext";
 
-function TimeHistogram({ width = 1000, height = 300 }) {
+function TimeHistogram({
+  id = "",
+  className = "",
+  width = 1000,
+  height = 300,
+}) {
   const svgRef = useRef(null);
   const barsRef = useRef(null);
 
@@ -35,6 +40,10 @@ function TimeHistogram({ width = 1000, height = 300 }) {
     selectedSankeyNodes,
     highlightedState,
     highlightedCity,
+    timeHighlightedState,
+    setTimeHighlightedState,
+    timeHighlightedCity,
+    setTimeHighlightedCity,
   } = useContext(InteractionContext);
 
   /***************************************************
@@ -93,6 +102,8 @@ function TimeHistogram({ width = 1000, height = 300 }) {
       const dayNum = +d3.timeDay(d.TransactionDate);
       if (!dts[dayNum]) dts[dayNum] = new Set();
       dts[dayNum].add(d.state_id);
+      if (!dts[dayNum]) dts[dayNum] = new Set();
+      dts[dayNum].add(d.state_full);
 
       if (!dtc[dayNum]) dtc[dayNum] = new Set();
       dtc[dayNum].add(d.Location);
@@ -115,13 +126,185 @@ function TimeHistogram({ width = 1000, height = 300 }) {
   /*****************************************************
    * 2) UPDATE EFFECT: color bars based on interactions
    *****************************************************/
+  // useEffect(() => {
+  //   if (!barsRef.current || !histData.length) return;
+
+  //   // Convert hoveredDay to numeric day for easy comparison
+  //   const hoveredDayNum = hoveredDay ? +d3.timeDay(hoveredDay) : null;
+
+  //   // If there is a hovered Sankey node, parse it
+  //   let hoveredSankeyLayer = null;
+  //   let hoveredSankeyName = null;
+  //   if (hoveredSankey) {
+  //     hoveredSankeyLayer = hoveredSankey.layer;
+  //     hoveredSankeyName = hoveredSankey.name;
+  //   }
+
+  //   barsRef.current
+  //     .attr("fill", (d) => {
+  //       // Default color depends on transaction type
+  //       const defColor = d.key === "Credit" ? "#4E79A7" : "#F28E2B";
+  //       const dayNum = +d3.timeDay(histData[d.index].date);
+
+  //       // 1) Check ephemeral (hover) conditions first => RED
+  //       //    (like your map circles do)
+  //       if (hoveredDayNum === dayNum) {
+  //         // If this day is hovered in the histogram
+  //         return "red";
+  //       }
+  //       if (highlightedState && d.state_id === highlightedState) {
+  //         return "red";
+  //       }
+  //       if (highlightedCity && d.Location === highlightedCity) {
+  //         return "red";
+  //       }
+  //       if (hoveredCity && dayToCities[dayNum]?.has(hoveredCity)) {
+  //         // If this bar's day has the hovered city from the map
+  //         return "red";
+  //       }
+  //       if (hoveredSankeyLayer !== null && hoveredSankeyName) {
+  //         // If we have a hovered Sankey node, see if this bar's day has that item
+  //         if (
+  //           hoveredSankeyLayer === 0 &&
+  //           dayToStates[dayNum]?.has(hoveredSankeyName)
+  //         ) {
+  //           return "red";
+  //         }
+  //         if (
+  //           hoveredSankeyLayer === 1 &&
+  //           dayToCities[dayNum]?.has(hoveredSankeyName)
+  //         ) {
+  //           return "red";
+  //         }
+  //         if (
+  //           hoveredSankeyLayer === 2 &&
+  //           dayToOccupations[dayNum]?.has(hoveredSankeyName)
+  //         ) {
+  //           return "red";
+  //         }
+  //         if (
+  //           hoveredSankeyLayer === 3 &&
+  //           dayToMerchants[dayNum]?.has(hoveredSankeyName)
+  //         ) {
+  //           return "red";
+  //         }
+  //       }
+
+  //       // 2) Check persistent (selected) conditions => BLUE
+  //       //    If any apply, color it blue
+  //       if (selectedDays.has(dayNum)) {
+  //         return "blue";
+  //       }
+  //       // If day has any selected city from the map
+  //       for (const city of selectedCities) {
+  //         if (dayToCities[dayNum]?.has(city)) {
+  //           return "blue";
+  //         }
+  //       }
+  //       // If day has any selected Sankey node
+  //       for (const sankeyNodeKey of selectedSankeyNodes) {
+  //         const [layer, name] = sankeyNodeKey.split("||");
+  //         if (layer === "0" && dayToStates[dayNum]?.has(name)) {
+  //           return "blue";
+  //         }
+  //         if (layer === "1" && dayToCities[dayNum]?.has(name)) {
+  //           return "blue";
+  //         }
+  //         if (layer === "2" && dayToOccupations[dayNum]?.has(name)) {
+  //           return "blue";
+  //         }
+  //         if (layer === "3" && dayToMerchants[dayNum]?.has(name)) {
+  //           return "blue";
+  //         }
+  //       }
+
+  //       // 3) If no ephemeral or persistent condition => default color
+  //       return defColor;
+  //     })
+  //     .attr("fill-opacity", (d) => {
+  //       // Optional: dim bars not relevant to any hover/selection
+  //       // to mimic the map approach of .3 vs .9
+  //       const dayNum = +d3.timeDay(histData[d.index].date);
+
+  //       // We'll see if it's relevant to any ephemeral or persistent condition
+  //       let isRelevant = false;
+
+  //       // ephemeral check
+  //       if (hoveredDayNum === dayNum) isRelevant = true;
+  //       if (hoveredCity && dayToCities[dayNum]?.has(hoveredCity))
+  //         isRelevant = true;
+  //       if (hoveredSankeyLayer !== null && hoveredSankeyName) {
+  //         if (
+  //           hoveredSankeyLayer === 0 &&
+  //           dayToStates[dayNum]?.has(hoveredSankeyName)
+  //         )
+  //           isRelevant = true;
+  //         if (
+  //           hoveredSankeyLayer === 1 &&
+  //           dayToCities[dayNum]?.has(hoveredSankeyName)
+  //         )
+  //           isRelevant = true;
+  //         if (
+  //           hoveredSankeyLayer === 2 &&
+  //           dayToOccupations[dayNum]?.has(hoveredSankeyName)
+  //         )
+  //           isRelevant = true;
+  //         if (
+  //           hoveredSankeyLayer === 3 &&
+  //           dayToMerchants[dayNum]?.has(hoveredSankeyName)
+  //         )
+  //           isRelevant = true;
+  //       }
+
+  //       // persistent check
+  //       if (selectedDays.has(dayNum)) isRelevant = true;
+  //       for (const city of selectedCities) {
+  //         if (dayToCities[dayNum]?.has(city)) isRelevant = true;
+  //       }
+  //       for (const sankeyNodeKey of selectedSankeyNodes) {
+  //         const [layer, name] = sankeyNodeKey.split("||");
+  //         if (layer === "0" && dayToStates[dayNum]?.has(name))
+  //           isRelevant = true;
+  //         if (layer === "1" && dayToCities[dayNum]?.has(name))
+  //           isRelevant = true;
+  //         if (layer === "2" && dayToOccupations[dayNum]?.has(name))
+  //           isRelevant = true;
+  //         if (layer === "3" && dayToMerchants[dayNum]?.has(name))
+  //           isRelevant = true;
+  //       }
+
+  //       // If relevant => full opacity, else if something is hovered/selected => dim
+  //       if (isRelevant) return 1;
+  //       if (
+  //         hoveredDayNum !== null ||
+  //         hoveredCity ||
+  //         hoveredSankeyLayer !== null ||
+  //         selectedDays.size > 0 ||
+  //         selectedCities.size > 0 ||
+  //         selectedSankeyNodes.size > 0
+  //       ) {
+  //         return 0.3;
+  //       }
+  //       // Otherwise, if nothing is hovered/selected => normal
+  //       return 1;
+  //     });
+  // }, [
+  //   hoveredDay,
+  //   selectedDays,
+  //   hoveredCity,
+  //   selectedCities,
+  //   hoveredSankey,
+  //   selectedSankeyNodes,
+  //   histData,
+  //   dayToStates,
+  //   dayToCities,
+  //   dayToOccupations,
+  //   dayToMerchants,
+  // ]);
   useEffect(() => {
     if (!barsRef.current || !histData.length) return;
 
-    // Convert hoveredDay to numeric day for easy comparison
     const hoveredDayNum = hoveredDay ? +d3.timeDay(hoveredDay) : null;
-
-    // If there is a hovered Sankey node, parse it
     let hoveredSankeyLayer = null;
     let hoveredSankeyName = null;
     if (hoveredSankey) {
@@ -131,94 +314,62 @@ function TimeHistogram({ width = 1000, height = 300 }) {
 
     barsRef.current
       .attr("fill", (d) => {
-        // Default color depends on transaction type
         const defColor = d.key === "Credit" ? "#4E79A7" : "#F28E2B";
         const dayNum = +d3.timeDay(histData[d.index].date);
 
-        // 1) Check ephemeral (hover) conditions first => RED
-        //    (like your map circles do)
-        if (hoveredDayNum === dayNum) {
-          // If this day is hovered in the histogram
-          return "red";
-        }
-        if (highlightedState && d.state_id === highlightedState) {
-          return "red";
-        }
-        if (highlightedCity && d.Location === highlightedCity) {
-          return "red";
-        }
-        if (hoveredCity && dayToCities[dayNum]?.has(hoveredCity)) {
-          // If this bar's day has the hovered city from the map
-          return "red";
-        }
+        // Debug log: show mapping and highlighted state for each bar
+        console.log(
+          `Bar ${d.index}: dayNum=${dayNum}, dayToStates=${Array.from(
+            dayToStates[dayNum] || []
+          )}, highlightedState=${highlightedState}`
+        );
+
+        // Ephemeral (hover) conditions
+        if (hoveredDayNum === dayNum) return "red";
+        if (timeHighlightedState && dayToStates[dayNum]?.has(timeHighlightedState)) return "red";
+        if (timeHighlightedCity && dayToCities[dayNum]?.has(timeHighlightedCity)) return "red";
+        if (hoveredCity && dayToCities[dayNum]?.has(hoveredCity)) return "red";
         if (hoveredSankeyLayer !== null && hoveredSankeyName) {
-          // If we have a hovered Sankey node, see if this bar's day has that item
           if (
             hoveredSankeyLayer === 0 &&
             dayToStates[dayNum]?.has(hoveredSankeyName)
-          ) {
+          )
             return "red";
-          }
           if (
             hoveredSankeyLayer === 1 &&
             dayToCities[dayNum]?.has(hoveredSankeyName)
-          ) {
+          )
             return "red";
-          }
           if (
             hoveredSankeyLayer === 2 &&
             dayToOccupations[dayNum]?.has(hoveredSankeyName)
-          ) {
+          )
             return "red";
-          }
           if (
             hoveredSankeyLayer === 3 &&
             dayToMerchants[dayNum]?.has(hoveredSankeyName)
-          ) {
+          )
             return "red";
-          }
         }
 
-        // 2) Check persistent (selected) conditions => BLUE
-        //    If any apply, color it blue
-        if (selectedDays.has(dayNum)) {
-          return "blue";
-        }
-        // If day has any selected city from the map
+        // Persistent (selected) conditions
+        if (selectedDays.has(dayNum)) return "blue";
         for (const city of selectedCities) {
-          if (dayToCities[dayNum]?.has(city)) {
-            return "blue";
-          }
+          if (dayToCities[dayNum]?.has(city)) return "blue";
         }
-        // If day has any selected Sankey node
         for (const sankeyNodeKey of selectedSankeyNodes) {
           const [layer, name] = sankeyNodeKey.split("||");
-          if (layer === "0" && dayToStates[dayNum]?.has(name)) {
+          if (layer === "0" && dayToStates[dayNum]?.has(name)) return "blue";
+          if (layer === "1" && dayToCities[dayNum]?.has(name)) return "blue";
+          if (layer === "2" && dayToOccupations[dayNum]?.has(name))
             return "blue";
-          }
-          if (layer === "1" && dayToCities[dayNum]?.has(name)) {
-            return "blue";
-          }
-          if (layer === "2" && dayToOccupations[dayNum]?.has(name)) {
-            return "blue";
-          }
-          if (layer === "3" && dayToMerchants[dayNum]?.has(name)) {
-            return "blue";
-          }
+          if (layer === "3" && dayToMerchants[dayNum]?.has(name)) return "blue";
         }
-
-        // 3) If no ephemeral or persistent condition => default color
         return defColor;
       })
       .attr("fill-opacity", (d) => {
-        // Optional: dim bars not relevant to any hover/selection
-        // to mimic the map approach of .3 vs .9
         const dayNum = +d3.timeDay(histData[d.index].date);
-
-        // We'll see if it's relevant to any ephemeral or persistent condition
         let isRelevant = false;
-
-        // ephemeral check
         if (hoveredDayNum === dayNum) isRelevant = true;
         if (hoveredCity && dayToCities[dayNum]?.has(hoveredCity))
           isRelevant = true;
@@ -244,8 +395,6 @@ function TimeHistogram({ width = 1000, height = 300 }) {
           )
             isRelevant = true;
         }
-
-        // persistent check
         if (selectedDays.has(dayNum)) isRelevant = true;
         for (const city of selectedCities) {
           if (dayToCities[dayNum]?.has(city)) isRelevant = true;
@@ -261,8 +410,6 @@ function TimeHistogram({ width = 1000, height = 300 }) {
           if (layer === "3" && dayToMerchants[dayNum]?.has(name))
             isRelevant = true;
         }
-
-        // If relevant => full opacity, else if something is hovered/selected => dim
         if (isRelevant) return 1;
         if (
           hoveredDayNum !== null ||
@@ -274,7 +421,6 @@ function TimeHistogram({ width = 1000, height = 300 }) {
         ) {
           return 0.3;
         }
-        // Otherwise, if nothing is hovered/selected => normal
         return 1;
       });
   }, [
@@ -284,13 +430,17 @@ function TimeHistogram({ width = 1000, height = 300 }) {
     selectedCities,
     hoveredSankey,
     selectedSankeyNodes,
+    // highlightedState,
+    // highlightedCity,
     histData,
     dayToStates,
     dayToCities,
     dayToOccupations,
     dayToMerchants,
+    timeHighlightedState,
+    timeHighlightedCity,
   ]);
-
+  // end ofuseEffect
   function drawHistogram(hist) {
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
@@ -408,7 +558,18 @@ function TimeHistogram({ width = 1000, height = 300 }) {
     return Math.max(3, Math.min(avgGap * 0.8, 20));
   }
 
-  return <svg ref={svgRef} style={{ width: "100%", height: "auto" }} />;
+  return (
+    <div
+      id={id}
+      className={className}
+      style={{ width, height, position: "relative" }}
+    >
+      <svg
+        ref={svgRef}
+        style={{ width: "100%", height: "100%" }}
+      />
+    </div>
+  );
 }
 
 export default TimeHistogram;

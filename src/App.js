@@ -33,16 +33,21 @@ function App() {
             title="Stacked Chart"
             initialWidth={1110}
             initialHeight={300}
-            initialX={440}
+            initialX={0}
             initialY={0}
           >
-            <TimeHistogram />
+            <TimeHistogram
+              id="time-graph"
+              className="drop-zone"
+              width={1110}
+              height={300}
+            />
           </SleekWidget>
           <SleekWidget
             title="Geographic Heatmap"
             initialWidth={500}
             initialHeight={400}
-            initialX={440}
+            initialX={0}
             initialY={320}
           >
             <GeographicHeatmap
@@ -56,7 +61,7 @@ function App() {
             title="Radial Network"
             initialWidth={600}
             initialHeight={600}
-            initialX={950}
+            initialX={510}
             initialY={320}
           >
             <CircleBipartite
@@ -71,7 +76,7 @@ function App() {
             title="State → City → Occupation → Merchant"
             initialWidth={440}
             initialHeight={950}
-            initialX={1560}
+            initialX={1120}
             initialY={1}
           >
             <SankeyFourColumns
