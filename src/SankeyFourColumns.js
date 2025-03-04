@@ -25,6 +25,10 @@ function SankeyFourColumns({
     selectedSankeyNodes,
     setSelectedSankeyNodes,
     setHoveredSankeyLink,
+    highlightedState,
+    setHighlightedState,
+    highlightedCity,
+    setHighlightedCity,
   } = useContext(InteractionContext);
 
   const containerRef = useRef(null);
@@ -269,7 +273,10 @@ function SankeyFourColumns({
         .nodeWidth(nodeWidthPx)
         .nodePadding(nodePaddingPx)
         .nodeAlign((node) => node.layer)
-        .extent([[0, 0], [w, h]]);
+        .extent([
+          [0, 0],
+          [w, h],
+        ]);
 
       const sankeyData = {
         nodes: nodeArray.map((d) => ({ ...d })),
@@ -362,7 +369,46 @@ function SankeyFourColumns({
         });
 
       // NEW: Attach drag-drop functionality
-      enableCopyAndDrag(nodeSel);
+
+      const handleNodeDrop = (nodeData, containerBox, dropZone) => {
+        console.log("Node dropped:", nodeData, containerBox, dropZone);
+        if (!dropZone) {
+          console.log("No drop zone detected—returning.");
+          return;
+        } // Not dropped over any target
+
+        // Example logic: check the id of the drop zone
+        if (dropZone.id === "geo-map") {
+          // If a state node (layer 0), highlight all circles for that state.
+          if (nodeData.layer === 0) {
+            console.log("Setting highlightedState =>", nodeData.name);
+            // For instance: call your context setter or a function to highlight state circles.
+            setHighlightedState(nodeData.name);
+            // console.log("Highlight all circles for state:", nodeData.name);
+          }
+          // If a city node (layer 1), highlight just that city circle.
+          else if (nodeData.layer === 1) {
+            console.log("Setting highlightedCity =>", nodeData.name);
+            setHighlightedCity(nodeData.name);
+            // highlightCityOnMap(nodeData.name);
+            // console.log("Highlight circle for city:", nodeData.name);
+          }
+        } else if (dropZone.id === "time-graph") {
+          // Highlight the bars corresponding to the node's data.
+          // highlightTimeData(nodeData.name, nodeData.layer);
+          console.log("Highlight time data for:", nodeData.name);
+          if (nodeData.layer === 0) {
+            console.log("Setting highlightedState =>", nodeData.name);
+            setHighlightedState(nodeData.name);
+            // console.log("Highlight time data for state:", nodeData.name);
+          } else if (nodeData.layer === 1) {
+            console.log("Setting highlightedCity =>", nodeData.name);
+            setHighlightedCity(nodeData.name);
+            // console.log("Highlight time data for city:", nodeData.name);
+          }
+        }
+      };
+      enableCopyAndDrag(nodeSel, handleNodeDrop);
 
       nodesRef.current = nodeSel;
 

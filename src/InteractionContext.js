@@ -1,5 +1,5 @@
 // InteractionContext.js
-import React, { createContext, useState } from 'react';
+import React, { createContext, useState, useEffect } from "react";
 
 export const InteractionContext = createContext();
 
@@ -11,6 +11,21 @@ export function InteractionProvider({ children }) {
   const [hoveredSankey, setHoveredSankey] = useState(null);
   const [hoveredSankeyLink, setHoveredSankeyLink] = useState(null);
   const [selectedSankeyNodes, setSelectedSankeyNodes] = useState(new Set());
+  const [highlightedState, setHighlightedState] = useState(null);
+  const [highlightedCity, setHighlightedCity] = useState(null);
+  const [interactionState, setInteractionState] = useState({
+    highlightedState: null,
+    highlightedCity: null,
+});
+
+const updateInteractionContext = (updates) => {
+  setInteractionState((prev) => ({ ...prev, ...updates }));
+};
+  // Debug effect: log whenever highlight changes
+  // useEffect(() => {
+  //   console.log("highlightedState changed:", highlightedState);
+  //   console.log("highlightedCity changed:", highlightedCity);
+  // }, [highlightedState, highlightedCity]);
 
   function resetSelections() {
     setHoveredDay(null);
@@ -20,19 +35,34 @@ export function InteractionProvider({ children }) {
     setHoveredSankey(null);
     setHoveredSankeyLink(null);
     setSelectedSankeyNodes(new Set());
+    setHighlightedState(null);
+    setHighlightedCity(null);
   }
 
   return (
-    <InteractionContext.Provider value={{
-      hoveredDay, setHoveredDay,
-      hoveredCity, setHoveredCity,
-      selectedDays, setSelectedDays,
-      selectedCities, setSelectedCities,
-      hoveredSankey, setHoveredSankey,
-      hoveredSankeyLink, setHoveredSankeyLink,
-      selectedSankeyNodes, setSelectedSankeyNodes,
-      resetSelections
-    }}>
+    <InteractionContext.Provider
+      value={{
+        hoveredDay,
+        setHoveredDay,
+        hoveredCity,
+        setHoveredCity,
+        selectedDays,
+        setSelectedDays,
+        selectedCities,
+        setSelectedCities,
+        hoveredSankey,
+        setHoveredSankey,
+        hoveredSankeyLink,
+        setHoveredSankeyLink,
+        selectedSankeyNodes,
+        setSelectedSankeyNodes,
+        highlightedState,
+        setHighlightedState,
+        highlightedCity,
+        setHighlightedCity,
+        resetSelections,
+      }}
+    >
       {children}
     </InteractionContext.Provider>
   );

@@ -9,12 +9,19 @@ function DropZone() {
   const { data } = useContext(DataContext);
   const handleDrop = (event) => {
     event.preventDefault();
-    const itemData = JSON.parse(event.dataTransfer.getData("text/plain"));
-    setDroppedItems((prev) => {
-      const updatedItems = [...prev, itemData];
-      return updatedItems;
-    });
-  };
+    const data = event.dataTransfer.getData("application/json");
+    if (!data) return;
+
+    const parsedData = JSON.parse(data);
+
+    // Ensure correct update for state/city
+    if (parsedData.type === "state") {
+        updateInteractionContext({ highlightedState: parsedData.name, highlightedCity: null });
+    } else if (parsedData.type === "city") {
+        updateInteractionContext({ highlightedCity: parsedData.name, highlightedState: null });
+    }
+};
+
 
   const handleDragOver = (event) => {
     event.preventDefault();

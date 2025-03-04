@@ -1,5 +1,19 @@
 import * as d3 from "d3";
 
+function detectDropZone(containerBox) {
+  const centerX = containerBox.left + containerBox.width / 2;
+  const centerY = containerBox.top + containerBox.height / 2;
+  const dropZones = document.querySelectorAll('.drop-zone');
+  for (const zone of dropZones) {
+    const rect = zone.getBoundingClientRect();
+    if (centerX >= rect.left && centerX <= rect.right &&
+        centerY >= rect.top && centerY <= rect.bottom) {
+      return zone;
+    }
+  }
+  return null;
+}
+
 /*  
   Drag handlers for the absolutely positioned container.
   These update the container’s CSS left/top based on drag deltas.
@@ -20,8 +34,12 @@ function draggedAbs(event, d) {
 }
 
 function dragEndedAbs(event, d) {
-  // Remove the visual feedback
   d3.select(this).style("outline", null);
+  const containerBox = this.getBoundingClientRect();
+  const dropZone = detectDropZone(containerBox);
+  if (d.onDragEndCallback) {
+    d.onDragEndCallback(d.nodeData, containerBox, dropZone);
+  }
 }
 
 /**
@@ -33,7 +51,7 @@ function dragEndedAbs(event, d) {
  *       b) A cloned copy is placed inside an absolutely positioned <div> (with its own <svg>).
  *       c) The container <div> is then made draggable across the page.
  */
-export function enableCopyAndDrag(selection) {
+export function enableCopyAndDrag(selection, onDragEndCallback = null) {
   selection.on("contextmenu", function (event) {
     event.preventDefault();
     
@@ -106,7 +124,8 @@ export function enableCopyAndDrag(selection) {
         x: bbox.x,
         y: bbox.y,
         originalNode: original.node(),
-        nodeData: original.datum()
+        nodeData: original.datum(),
+        onDragEndCallback: onDragEndCallback
       });
       
       // 6) Attach a D3 drag behavior to the container so it can be moved freely

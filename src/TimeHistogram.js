@@ -25,12 +25,16 @@ function TimeHistogram({ width = 1000, height = 300 }) {
   // hoveredCity, hoveredSankey => cross-view ephemeral signals
   // selectedCities => if you want persistent city selection
   const {
-    hoveredDay, setHoveredDay,
-    selectedDays, setSelectedDays,
+    hoveredDay,
+    setHoveredDay,
+    selectedDays,
+    setSelectedDays,
     hoveredCity,
     hoveredSankey,
     selectedCities,
-    selectedSankeyNodes
+    selectedSankeyNodes,
+    highlightedState,
+    highlightedCity,
   } = useContext(InteractionContext);
 
   /***************************************************
@@ -135,6 +139,12 @@ function TimeHistogram({ width = 1000, height = 300 }) {
         //    (like your map circles do)
         if (hoveredDayNum === dayNum) {
           // If this day is hovered in the histogram
+          return "red";
+        }
+        if (highlightedState && d.state_id === highlightedState) {
+          return "red";
+        }
+        if (highlightedCity && d.Location === highlightedCity) {
           return "red";
         }
         if (hoveredCity && dayToCities[dayNum]?.has(hoveredCity)) {

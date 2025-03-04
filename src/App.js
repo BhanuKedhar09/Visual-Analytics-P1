@@ -13,17 +13,44 @@ function App() {
   return (
     <DataProvider>
       <InteractionProvider>
-        <div className="App" style={{ width: "100%", height: "100vh", position: "relative", padding: "10px" }}>
+        <div
+          className="App"
+          style={{
+            width: "100%",
+            height: "100vh",
+            position: "relative",
+            padding: "10px",
+          }}
+        >
           <h1>My Visual Analytics App</h1>
           {/* Place the Reset Button somewhere visible */}
-          <div style={{ position: "absolute", top: 10, right: 10, zIndex: 1000 }}>
+          <div
+            style={{ position: "absolute", top: 10, right: 10, zIndex: 1000 }}
+          >
             <ResetSelectionsButton />
           </div>
-          <SleekWidget title="Stacked Chart" initialWidth={1110} initialHeight={300} initialX={440} initialY={0}>
+          <SleekWidget
+            title="Stacked Chart"
+            initialWidth={1110}
+            initialHeight={300}
+            initialX={440}
+            initialY={0}
+          >
             <TimeHistogram />
           </SleekWidget>
-          <SleekWidget title="Geographic Heatmap" initialWidth={500} initialHeight={400} initialX={440} initialY={320}>
-            <GeographicHeatmap />
+          <SleekWidget
+            title="Geographic Heatmap"
+            initialWidth={500}
+            initialHeight={400}
+            initialX={440}
+            initialY={320}
+          >
+            <GeographicHeatmap
+              id="geo-map"
+              className="drop-zone"
+              width={500}
+              height={400}
+            />
           </SleekWidget>
           <SleekWidget
             title="Radial Network"
@@ -34,14 +61,25 @@ function App() {
           >
             <CircleBipartite
               width={600}
-              height={600}
-              innerRadius={200}
-              outerRadius={300}
+              height={550}
+              innerRadius={150}
+              outerRadius={250}
               minFreq={2} // or 3 or 5
             />
           </SleekWidget>
-          <SleekWidget title="State → City → Occupation → Merchant" initialWidth={440} initialHeight={950} initialX={1560} initialY={1}>
-            <SankeyFourColumns minFlow={2} maxMerchants={30} nodeWidthPx={10} nodePaddingPx={20} />
+          <SleekWidget
+            title="State → City → Occupation → Merchant"
+            initialWidth={440}
+            initialHeight={950}
+            initialX={1560}
+            initialY={1}
+          >
+            <SankeyFourColumns
+              minFlow={2}
+              maxMerchants={30}
+              nodeWidthPx={10}
+              nodePaddingPx={20}
+            />
           </SleekWidget>
         </div>
       </InteractionProvider>

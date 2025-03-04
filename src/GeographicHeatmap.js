@@ -4,7 +4,7 @@ import * as d3 from "d3";
 import { DataContext } from "./DataLoader";
 import { InteractionContext } from "./InteractionContext";
 
-function GeographicHeatmap({ width = 1200, height = 800 }) {
+function GeographicHeatmap({ width = 1200, height = 800, id = "", className = ""  }) {
   const svgRef = useRef(null);
   const circlesRef = useRef(null); // store the circle selection
   const gMapRef = useRef(null);
@@ -22,7 +22,10 @@ function GeographicHeatmap({ width = 1200, height = 800 }) {
     setSelectedCities,
     hoveredSankey,
     selectedSankeyNodes,
+    highlightedState,
+    highlightedCity,
   } = useContext(InteractionContext);
+
 
   /*******************************************
    * 1) MOUNT EFFECT: parse data, draw map once
@@ -69,7 +72,7 @@ function GeographicHeatmap({ width = 1200, height = 800 }) {
     const gMap = svg.append("g");
     gMapRef.current = gMap;
 
-    const baseScale = (width + height) * 0.75;
+    const baseScale = Math.min(width + height) * 0.76;
     const projection = d3
       .geoAlbersUsa()
       .translate([width / 2, height / 2])
@@ -108,7 +111,12 @@ function GeographicHeatmap({ width = 1200, height = 800 }) {
           .attr("fill", (d) => {
             // default fill color
             let fillColor = "orange";
-
+            if (highlightedState && d.state === highlightedState) {
+              return "red";
+            }
+            if (highlightedCity && d.city === highlightedCity) {
+              return "red";
+            }
             // If the city is hovered, use red.
             if (hoveredCity === d.city) {
               fillColor = "red";
@@ -248,15 +256,27 @@ function GeographicHeatmap({ width = 1200, height = 800 }) {
   }, [data, width, height, setHoveredCity, setSelectedCities]);
 
   useEffect(() => {
+    console.log("GeographicHeatmap useEffect running. highlightedState =", highlightedState, "highlightedCity =", highlightedCity);
+    console.log("cities.length =", cities.length);
+
     if (!circlesRef.current || !cities.length) return;
-  
+
     const hoveredDayNum = hoveredDay ? +d3.timeDay(hoveredDay) : null;
-  
+
     circlesRef.current
       .attr("fill", (d) => {
+        console.log("Comparing city state =>", d.state, "with highlightedState =>", highlightedState);
+        console.log("Comparing city =>", d.city, "with highlightedCity =>", highlightedCity);
+
         // default fill color for cities is orange
         let fillColor = "orange";
-        
+        if (highlightedState && d.state === highlightedState) {
+          return "red";
+        }
+        if (highlightedCity && d.city === highlightedCity) {
+          return "red";
+        }
+
         // Local interactions: if the city is hovered → red; if selected → blue.
         if (hoveredCity === d.city) {
           fillColor = "red";
@@ -264,24 +284,28 @@ function GeographicHeatmap({ width = 1200, height = 800 }) {
         if (selectedCities.has(d.city)) {
           fillColor = "blue";
         }
-        
-         // if hoveredDay or selectedDays => see if city has that day
-         let matchesDay = false;
-         if (hoveredDayNum && d.days.has(hoveredDayNum)) {
-           matchesDay = true;
-           fillColor = "red";
-         }
-         for (const dayNum of selectedDays) {
-           if (d.days.has(dayNum)) {
-             matchesDay = true;
-             fillColor = "blue";
-             break;
-           }
-         }
-         
-        // Cross-view (from Sankey): 
+
+        // if hoveredDay or selectedDays => see if city has that day
+        let matchesDay = false;
+        if (hoveredDayNum && d.days.has(hoveredDayNum)) {
+          matchesDay = true;
+          fillColor = "red";
+        }
+        for (const dayNum of selectedDays) {
+          if (d.days.has(dayNum)) {
+            matchesDay = true;
+            fillColor = "blue";
+            break;
+          }
+        }
+
+        // Cross-view (from Sankey):
         // if a Sankey state node is hovered and matches this city's state → red.
-        if (hoveredSankey && hoveredSankey.layer === 0 && hoveredSankey.name === d.state) {
+        if (
+          hoveredSankey &&
+          hoveredSankey.layer === 0 &&
+          hoveredSankey.name === d.state
+        ) {
           fillColor = "red";
         }
         // if a Sankey state node is selected and matches this city's state → blue.
@@ -292,7 +316,7 @@ function GeographicHeatmap({ width = 1200, height = 800 }) {
             break;
           }
         }
-        
+
         return fillColor;
       })
       .attr("fill-opacity", (d) => {
@@ -322,9 +346,19 @@ function GeographicHeatmap({ width = 1200, height = 800 }) {
         }
         return 1;
       });
-  }, [hoveredDay, hoveredCity, selectedDays, selectedCities, cities, hoveredSankey, selectedSankeyNodes]);
+  }, [
+    hoveredDay,
+    hoveredCity,
+    selectedDays,
+    selectedCities,
+    cities,
+    hoveredSankey,
+    selectedSankeyNodes,
+    highlightedState,
+    highlightedCity
+  ]);
   return (
-    <div style={{ position: "relative", width, height }}>
+    <div id={id} className={className} style={{ position: "relative", width, height }}>
       <svg ref={svgRef} style={{ width: "100%", height: "100%" }} />
     </div>
   );
