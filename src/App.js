@@ -72,6 +72,20 @@ function App() {
               minFreq={2} // or 3 or 5
             />
           </SleekWidget>
+          {/* <SleekWidget
+            title="State → City → Occupation → Merchant"
+            initialWidth={440}
+            initialHeight={950}
+            initialX={1120}
+            initialY={1}
+          >
+            <SankeyFourColumns
+              // minFlow={2}
+              maxMerchants={40}
+              // nodeWidthPx={10}
+              // nodePaddingPx={20}
+            />
+          </SleekWidget> */}
           <SleekWidget
             title="State → City → Occupation → Merchant"
             initialWidth={440}
@@ -80,10 +94,12 @@ function App() {
             initialY={1}
           >
             <SankeyFourColumns
-              minFlow={2}
-              maxMerchants={30}
-              nodeWidthPx={10}
-              nodePaddingPx={20}
+              id="sankey"
+              className="drop-zone"
+              // minFlow={2}
+              maxMerchants={40}
+              // nodeWidthPx={10}
+              // nodePaddingPx={20}
             />
           </SleekWidget>
         </div>

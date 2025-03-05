@@ -11,6 +11,7 @@ import { sankey, sankeyLinkHorizontal } from "d3-sankey";
 import { DataContext } from "./DataLoader";
 import { InteractionContext } from "./InteractionContext";
 import { enableCopyAndDrag } from "./dragDropHelper";
+import { createDropHandler } from "./dropHandler";
 
 function SankeyFourColumns({
   minFlow = 1, // skip flows with frequency < minFlow
@@ -38,7 +39,14 @@ function SankeyFourColumns({
   const containerRef = useRef(null);
   const svgRef = useRef(null);
   const nodesRef = useRef(null); // for later coloring
+  const dropContext = {
+    setHighlightedState,
+    setHighlightedCity,
+    setTimeHighlightedState,
+    setTimeHighlightedCity,
+  };
 
+  
   // Dimensions
   const [width, setWidth] = useState(800);
   const [height, setHeight] = useState(560);
@@ -303,7 +311,7 @@ function SankeyFourColumns({
         .append("path")
         .attr("fill", "none")
         .attr("stroke", "#999")
-        .attr("stroke-opacity", 0.4)
+        .attr("stroke-opacity", 0.6)
         .attr("stroke-width", (d) => d.width)
         .attr("d", sankeyLinkHorizontal())
         .on("mouseover", (evt, d) => {
@@ -315,7 +323,7 @@ function SankeyFourColumns({
         .on("mouseout", (evt, d) => {
           d3.select(evt.currentTarget)
             .attr("stroke", "#999")
-            .attr("stroke-opacity", 0.4);
+            .attr("stroke-opacity", 0.6);
           setHoveredSankeyLink(null);
         });
 
@@ -334,7 +342,7 @@ function SankeyFourColumns({
         .attr("stroke-width", 1)
         .attr("fill", (d) => {
           if (d.layer === 0) return "#4E79A7"; // state
-          if (d.layer === 1) return "#F28E2B"; // city
+          if (d.layer === 1) return "#AA3377"; // city
           if (d.layer === 2) return "#59A14F"; // occupation
           return "#E15759"; // merchant
         })
@@ -370,6 +378,10 @@ function SankeyFourColumns({
             else newSet.add(nodeKey);
             return newSet;
           });
+        });
+        nodeSel.each(function(d) {
+          // e.g. if d.layer===0 => "state", layer===1 => "city", etc.
+          d.type = "sankeyNode";
         });
 
       // NEW: Attach drag-drop functionality
@@ -418,7 +430,14 @@ function SankeyFourColumns({
           }
         }
       };
-      enableCopyAndDrag(nodeSel, handleNodeDrop);
+      const handleDrop = createDropHandler({
+        setHighlightedState,
+        setHighlightedCity,
+        setTimeHighlightedState,
+        setTimeHighlightedCity,
+      });
+      // enableCopyAndDrag(nodeSel, handleNodeDrop);
+      enableCopyAndDrag(nodeSel, handleDrop);
 
       nodesRef.current = nodeSel;
 
@@ -488,5 +507,5 @@ function defaultColorByLayer(layer) {
   if (layer === 2) return "#59A14F"; // occupations
   return "#E15759"; // merchants
 }
-
+// export { handleNodeDrop };
 export default SankeyFourColumns;

@@ -3,8 +3,15 @@ import React, { useRef, useEffect, useContext, useState } from "react";
 import * as d3 from "d3";
 import { DataContext } from "./DataLoader";
 import { InteractionContext } from "./InteractionContext";
+import { createDropHandler } from "./dropHandler";
+import { enableCopyAndDrag } from "./dragDropHelper";
 
-function GeographicHeatmap({ width = 1200, height = 800, id = "", className = ""  }) {
+function GeographicHeatmap({
+  width = 1200,
+  height = 800,
+  id = "",
+  className = "",
+}) {
   const svgRef = useRef(null);
   const circlesRef = useRef(null); // store the circle selection
   const gMapRef = useRef(null);
@@ -23,9 +30,14 @@ function GeographicHeatmap({ width = 1200, height = 800, id = "", className = ""
     hoveredSankey,
     selectedSankeyNodes,
     highlightedState,
+    setHighlightedState,
     highlightedCity,
+    setHighlightedCity,
+    timeHighlightedState,
+    setTimeHighlightedState,
+    timeHighlightedCity,
+    setTimeHighlightedCity,
   } = useContext(InteractionContext);
-
 
   /*******************************************
    * 1) MOUNT EFFECT: parse data, draw map once
@@ -236,8 +248,48 @@ function GeographicHeatmap({ width = 1200, height = 800, id = "", className = ""
               return newSet;
             });
           });
-
+        circleSel.each(function (d) {
+          d.type = "geoCircle";
+        });
+        const handleDrop = createDropHandler({
+          setHighlightedState,
+          setHighlightedCity,
+          setTimeHighlightedState,
+          setTimeHighlightedCity,
+        });
+        enableCopyAndDrag(circleSel, handleDrop);
         circlesRef.current = circleSel;
+        // Ensure tooltip exists
+        const tooltip = d3.select("body").select(".tooltip");
+        if (tooltip.empty()) {
+          d3.select("body").append("div").attr("class", "tooltip");
+        }
+
+        circleSel
+          .on("mouseover", (evt, d) => {
+            d3.select("body")
+              .select(".tooltip")
+              .html(
+                `
+        <strong>${d.city}</strong><br/>
+        State: ${d.state}<br/>
+        Transactions: ${d.count}
+      `
+              )
+              .style("opacity", 1);
+          })
+          .on("mousemove", (evt) => {
+            d3.select("body")
+              .select(".tooltip")
+              .style("left", evt.pageX + 10 + "px")
+              .style("top", evt.pageY + 10 + "px");
+          })
+          .on("mouseout", () => {
+            d3.select("body").select(".tooltip").style("opacity", 0);
+          });
+        circleSel.each(function (d) {
+          d.type = "geoCircle";
+        });
       })
       .catch((err) => console.error("Error loading map data:", err));
 
@@ -256,7 +308,12 @@ function GeographicHeatmap({ width = 1200, height = 800, id = "", className = ""
   }, [data, width, height, setHoveredCity, setSelectedCities]);
 
   useEffect(() => {
-    console.log("GeographicHeatmap useEffect running. highlightedState =", highlightedState, "highlightedCity =", highlightedCity);
+    console.log(
+      "GeographicHeatmap useEffect running. highlightedState =",
+      highlightedState,
+      "highlightedCity =",
+      highlightedCity
+    );
     console.log("cities.length =", cities.length);
 
     if (!circlesRef.current || !cities.length) return;
@@ -265,8 +322,18 @@ function GeographicHeatmap({ width = 1200, height = 800, id = "", className = ""
 
     circlesRef.current
       .attr("fill", (d) => {
-        console.log("Comparing city state =>", d.state, "with highlightedState =>", highlightedState);
-        console.log("Comparing city =>", d.city, "with highlightedCity =>", highlightedCity);
+        console.log(
+          "Comparing city state =>",
+          d.state,
+          "with highlightedState =>",
+          highlightedState
+        );
+        console.log(
+          "Comparing city =>",
+          d.city,
+          "with highlightedCity =>",
+          highlightedCity
+        );
 
         // default fill color for cities is orange
         let fillColor = "orange";
@@ -355,10 +422,14 @@ function GeographicHeatmap({ width = 1200, height = 800, id = "", className = ""
     hoveredSankey,
     selectedSankeyNodes,
     highlightedState,
-    highlightedCity
+    highlightedCity,
   ]);
   return (
-    <div id={id} className={className} style={{ position: "relative", width, height }}>
+    <div
+      id={id}
+      className={className}
+      style={{ position: "relative", width, height }}
+    >
       <svg ref={svgRef} style={{ width: "100%", height: "100%" }} />
     </div>
   );
