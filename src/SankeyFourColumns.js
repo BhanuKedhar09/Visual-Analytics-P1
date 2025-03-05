@@ -45,6 +45,8 @@ function SankeyFourColumns({
   const containerRef = useRef(null);
   const svgRef = useRef(null);
   const nodesRef = useRef(null); // for later coloring
+  const linkSelectionRef = useRef(null);
+  const sankeyLayoutRef = useRef(null);
   const dropContext = {
     setHighlightedState,
     setHighlightedCity,
@@ -55,6 +57,8 @@ function SankeyFourColumns({
   // Dimensions
   const [width, setWidth] = useState(800);
   const [height, setHeight] = useState(560);
+  const [highlightedNodes, setHighlightedNodes] = useState(new Set());
+const [highlightedLinks, setHighlightedLinks] = useState(new Set());
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -306,10 +310,10 @@ function SankeyFourColumns({
         console.error("Sankey layout error:", err);
         return;
       }
-
+      sankeyLayoutRef.current = sankeyLayout;
       // 1) Draw links
       const linkGroup = svg.append("g");
-      linkGroup
+      linkSelectionRef.current = linkGroup
         .selectAll("path")
         .data(sankeyLayout.links)
         .enter()
@@ -506,6 +510,87 @@ function SankeyFourColumns({
     sankeyHighlightedState, // <-- add
     sankeyHighlightedCity,
   ]);
+
+  useEffect(() => {
+    if (!sankeyLayoutRef.current) return;
+  
+    // If neither city nor state is highlighted, clear everything
+    if (!sankeyHighlightedCity && !sankeyHighlightedState) {
+      setHighlightedLinks(new Set());
+      setHighlightedNodes(new Set());
+      return;
+    }
+  
+    const { nodes, links } = sankeyLayoutRef.current;
+    const connectedLinkIndices = new Set();
+    const connectedNodeIndices = new Set();
+  
+    // Find the relevant nodes
+    const cityNode =
+      sankeyHighlightedCity &&
+      nodes.find((n) => n.layer === 1 && n.name === sankeyHighlightedCity);
+    const stateNode =
+      sankeyHighlightedState &&
+      nodes.find((n) => n.layer === 0 && n.name === sankeyHighlightedState);
+  
+    if (cityNode && stateNode) {
+      //
+      // (A) Highlight ONLY the single link from the state node to the city node
+      //
+      links.forEach((link, i) => {
+        if (link.source.index === stateNode.index && link.target.index === cityNode.index) {
+          connectedLinkIndices.add(i);
+          connectedNodeIndices.add(link.source.index);
+          connectedNodeIndices.add(link.target.index);
+        }
+      });
+  
+      //
+      // (B) ALSO highlight all links that connect to that city node
+      //     (i.e. city→occupation, city→anything else)
+      //
+      links.forEach((link, i) => {
+        if (link.source.index === cityNode.index || link.target.index === cityNode.index) {
+          connectedLinkIndices.add(i);
+          connectedNodeIndices.add(link.source.index);
+          connectedNodeIndices.add(link.target.index);
+        }
+      });
+    }
+    else if (cityNode) {
+      // ONLY city is highlighted => highlight all links connected to that city
+      links.forEach((link, i) => {
+        if (link.source.index === cityNode.index || link.target.index === cityNode.index) {
+          connectedLinkIndices.add(i);
+          connectedNodeIndices.add(link.source.index);
+          connectedNodeIndices.add(link.target.index);
+        }
+      });
+    }
+    else if (stateNode) {
+      // ONLY state is highlighted => highlight all links connected to that state
+      links.forEach((link, i) => {
+        if (link.source.index === stateNode.index || link.target.index === stateNode.index) {
+          connectedLinkIndices.add(i);
+          connectedNodeIndices.add(link.source.index);
+          connectedNodeIndices.add(link.target.index);
+        }
+      });
+    }
+  
+    // Save in state => a later useEffect or direct .attr() call updates the visuals
+    setHighlightedLinks(connectedLinkIndices);
+    setHighlightedNodes(connectedNodeIndices);
+  }, [sankeyHighlightedCity, sankeyHighlightedState]);
+  
+  // then you likely have another useEffect that updates the link styling:
+  useEffect(() => {
+    if (linkSelectionRef.current) {
+      linkSelectionRef.current
+        .attr("stroke", (d, i) => (highlightedLinks.has(i) ? "red" : "#999"))
+        .attr("stroke-opacity", (d, i) => (highlightedLinks.has(i) ? 1 : 0.6));
+    }
+  }, [highlightedLinks]);
 
   return (
     <div
