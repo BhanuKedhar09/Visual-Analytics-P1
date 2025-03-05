@@ -37,6 +37,12 @@ function GeographicHeatmap({
     setTimeHighlightedState,
     timeHighlightedCity,
     setTimeHighlightedCity,
+    mapHighlightedState,
+    mapHighlightedCity,
+    sankeyHighlightedState,
+    setSankeyHighlightedState,
+    sankeyHighlightedCity,
+    setSankeyHighlightedCity,
   } = useContext(InteractionContext);
 
   /*******************************************
@@ -123,7 +129,13 @@ function GeographicHeatmap({
           .attr("fill", (d) => {
             // default fill color
             let fillColor = "orange";
-            if (highlightedState && d.state === highlightedState) {
+            if (mapHighlightedState && d.state_id === mapHighlightedState) {
+              return "red";
+            }
+            if (mapHighlightedCity && d.city === mapHighlightedCity) {
+              return "red";
+            }
+            if (highlightedState && d.state_id === highlightedState) {
               return "red";
             }
             if (highlightedCity && d.city === highlightedCity) {
@@ -256,6 +268,10 @@ function GeographicHeatmap({
           setHighlightedCity,
           setTimeHighlightedState,
           setTimeHighlightedCity,
+          sankeyHighlightedState, // add this
+          setSankeyHighlightedState, // add this
+          sankeyHighlightedCity, // add this
+          setSankeyHighlightedCity,
         });
         enableCopyAndDrag(circleSel, handleDrop);
         circlesRef.current = circleSel;
@@ -308,13 +324,13 @@ function GeographicHeatmap({
   }, [data, width, height, setHoveredCity, setSelectedCities]);
 
   useEffect(() => {
-    console.log(
-      "GeographicHeatmap useEffect running. highlightedState =",
-      highlightedState,
-      "highlightedCity =",
-      highlightedCity
-    );
-    console.log("cities.length =", cities.length);
+    // console.log(
+    //   "GeographicHeatmap useEffect running. highlightedState =",
+    //   highlightedState,
+    //   "highlightedCity =",
+    //   highlightedCity
+    // );
+    // console.log("cities.length =", cities.length);
 
     if (!circlesRef.current || !cities.length) return;
 
@@ -322,22 +338,9 @@ function GeographicHeatmap({
 
     circlesRef.current
       .attr("fill", (d) => {
-        console.log(
-          "Comparing city state =>",
-          d.state,
-          "with highlightedState =>",
-          highlightedState
-        );
-        console.log(
-          "Comparing city =>",
-          d.city,
-          "with highlightedCity =>",
-          highlightedCity
-        );
-
         // default fill color for cities is orange
         let fillColor = "orange";
-        if (highlightedState && d.state === highlightedState) {
+        if (highlightedState && d.state_id === highlightedState) {
           return "red";
         }
         if (highlightedCity && d.city === highlightedCity) {

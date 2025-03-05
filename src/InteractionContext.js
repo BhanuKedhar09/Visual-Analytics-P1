@@ -16,14 +16,15 @@ export function InteractionProvider({ children }) {
   const [interactionState, setInteractionState] = useState({
     highlightedState: null,
     highlightedCity: null,
-});
-const [timeHighlightedState, setTimeHighlightedState] = useState(null);
-const [timeHighlightedCity, setTimeHighlightedCity] = useState(null);
+  });
+  const [timeHighlightedState, setTimeHighlightedState] = useState(null);
+  const [timeHighlightedCity, setTimeHighlightedCity] = useState(null);
+  const [sankeyHighlightedState, setSankeyHighlightedState] = useState(null);
+  const [sankeyHighlightedCity, setSankeyHighlightedCity] = useState(null);
 
-
-const updateInteractionContext = (updates) => {
-  setInteractionState((prev) => ({ ...prev, ...updates }));
-};
+  const updateInteractionContext = (updates) => {
+    setInteractionState((prev) => ({ ...prev, ...updates }));
+  };
   // Debug effect: log whenever highlight changes
   // useEffect(() => {
   //   console.log("highlightedState changed:", highlightedState);
@@ -42,6 +43,10 @@ const updateInteractionContext = (updates) => {
     setHighlightedCity(null);
     setTimeHighlightedState(null);
     setTimeHighlightedCity(null);
+    // setMapHighlightedState(null);
+    // setMapHighlightedCity(null);
+    setSankeyHighlightedState(null);
+    setSankeyHighlightedCity(null);
   }
 
   return (
@@ -70,6 +75,10 @@ const updateInteractionContext = (updates) => {
         setTimeHighlightedState,
         timeHighlightedCity,
         setTimeHighlightedCity,
+        sankeyHighlightedState,
+        setSankeyHighlightedState,
+        sankeyHighlightedCity,
+        setSankeyHighlightedCity,
         // interactionState,
       }}
     >

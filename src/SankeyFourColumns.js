@@ -18,6 +18,8 @@ function SankeyFourColumns({
   maxMerchants = 20, // group smaller merchants into "Other"
   nodeWidthPx = 30,
   nodePaddingPx = 20,
+  id = "",
+  className = "",
 }) {
   const { data } = useContext(DataContext);
   const {
@@ -34,6 +36,10 @@ function SankeyFourColumns({
     setTimeHighlightedState,
     timeHighlightedCity,
     setTimeHighlightedCity,
+    sankeyHighlightedState,
+    setSankeyHighlightedState,
+    sankeyHighlightedCity,
+    setSankeyHighlightedCity,
   } = useContext(InteractionContext);
 
   const containerRef = useRef(null);
@@ -46,7 +52,6 @@ function SankeyFourColumns({
     setTimeHighlightedCity,
   };
 
-  
   // Dimensions
   const [width, setWidth] = useState(800);
   const [height, setHeight] = useState(560);
@@ -325,6 +330,7 @@ function SankeyFourColumns({
             .attr("stroke", "#999")
             .attr("stroke-opacity", 0.6);
           setHoveredSankeyLink(null);
+          setHoveredSankey(null);
         });
 
       // 2) Draw nodes
@@ -346,7 +352,6 @@ function SankeyFourColumns({
           if (d.layer === 2) return "#59A14F"; // occupation
           return "#E15759"; // merchant
         })
-        // Do not set fill here; update in useEffect below.
         .on("mouseover", (evt, d) => {
           setHoveredSankey({ layer: d.layer, name: d.name, index: d.index });
           linkGroup
@@ -379,10 +384,10 @@ function SankeyFourColumns({
             return newSet;
           });
         });
-        nodeSel.each(function(d) {
-          // e.g. if d.layer===0 => "state", layer===1 => "city", etc.
-          d.type = "sankeyNode";
-        });
+      nodeSel.each(function (d) {
+        // e.g. if d.layer===0 => "state", layer===1 => "city", etc.
+        d.type = "sankeyNode";
+      });
 
       // NEW: Attach drag-drop functionality
 
@@ -474,6 +479,15 @@ function SankeyFourColumns({
     if (!nodesRef.current) return;
     nodesRef.current.attr("fill", (d) => {
       const nodeKey = `${d.layer}||${d.name}`;
+      if (d.layer === 0 && d.name === sankeyHighlightedState) return "red";
+      if (d.layer === 1 && d.name === sankeyHighlightedCity) return "red";
+      // Highlight if this node matches the drop-set map highlight.
+      if (highlightedState && d.layer === 0 && d.name === highlightedState)
+        return "red";
+      if (highlightedCity && d.layer === 1 && d.name === highlightedCity)
+        return "red";
+
+      // Also apply hover/selection highlighting as before.
       if (
         hoveredSankey &&
         hoveredSankey.layer === d.layer &&
@@ -486,11 +500,18 @@ function SankeyFourColumns({
       }
       return defaultColorByLayer(d.layer);
     });
-  }, [hoveredSankey, selectedSankeyNodes]);
+  }, [
+    hoveredSankey,
+    selectedSankeyNodes,
+    sankeyHighlightedState, // <-- add
+    sankeyHighlightedCity,
+  ]);
 
   return (
     <div
       ref={containerRef}
+      id={id}
+      className={className}
       style={{ width: "100%", height: "100%", position: "relative" }}
     >
       <svg
@@ -507,5 +528,5 @@ function defaultColorByLayer(layer) {
   if (layer === 2) return "#59A14F"; // occupations
   return "#E15759"; // merchants
 }
-// export { handleNodeDrop };
+// export { handleDrop };
 export default SankeyFourColumns;
