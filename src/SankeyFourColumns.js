@@ -58,7 +58,7 @@ function SankeyFourColumns({
   const [width, setWidth] = useState(800);
   const [height, setHeight] = useState(560);
   const [highlightedNodes, setHighlightedNodes] = useState(new Set());
-const [highlightedLinks, setHighlightedLinks] = useState(new Set());
+  const [highlightedLinks, setHighlightedLinks] = useState(new Set());
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -444,6 +444,10 @@ const [highlightedLinks, setHighlightedLinks] = useState(new Set());
         setHighlightedCity,
         setTimeHighlightedState,
         setTimeHighlightedCity,
+        sankeyHighlightedState,
+        setSankeyHighlightedState,
+        sankeyHighlightedCity,
+        setSankeyHighlightedCity,
       });
       // enableCopyAndDrag(nodeSel, handleNodeDrop);
       enableCopyAndDrag(nodeSel, handleDrop);
@@ -470,6 +474,14 @@ const [highlightedLinks, setHighlightedLinks] = useState(new Set());
       setHoveredSankey,
       setHoveredSankeyLink,
       setSelectedSankeyNodes,
+      setHighlightedState,
+      setHighlightedCity,
+      setTimeHighlightedState,
+      setTimeHighlightedCity,
+      sankeyHighlightedState,
+      setSankeyHighlightedState,
+      sankeyHighlightedCity,
+      setSankeyHighlightedCity,
     ]
   );
 
@@ -509,22 +521,30 @@ const [highlightedLinks, setHighlightedLinks] = useState(new Set());
     selectedSankeyNodes,
     sankeyHighlightedState, // <-- add
     sankeyHighlightedCity,
+    setHighlightedState,
+    setHighlightedCity,
+    setTimeHighlightedState,
+    setTimeHighlightedCity,
+    sankeyHighlightedState,
+    setSankeyHighlightedState,
+    sankeyHighlightedCity,
+    setSankeyHighlightedCity,
   ]);
 
   useEffect(() => {
     if (!sankeyLayoutRef.current) return;
-  
+
     // If neither city nor state is highlighted, clear everything
     if (!sankeyHighlightedCity && !sankeyHighlightedState) {
       setHighlightedLinks(new Set());
       setHighlightedNodes(new Set());
       return;
     }
-  
+
     const { nodes, links } = sankeyLayoutRef.current;
     const connectedLinkIndices = new Set();
     const connectedNodeIndices = new Set();
-  
+
     // Find the relevant nodes
     const cityNode =
       sankeyHighlightedCity &&
@@ -532,57 +552,67 @@ const [highlightedLinks, setHighlightedLinks] = useState(new Set());
     const stateNode =
       sankeyHighlightedState &&
       nodes.find((n) => n.layer === 0 && n.name === sankeyHighlightedState);
-  
+
     if (cityNode && stateNode) {
       //
       // (A) Highlight ONLY the single link from the state node to the city node
       //
       links.forEach((link, i) => {
-        if (link.source.index === stateNode.index && link.target.index === cityNode.index) {
+        if (
+          link.source.index === stateNode.index &&
+          link.target.index === cityNode.index
+        ) {
           connectedLinkIndices.add(i);
           connectedNodeIndices.add(link.source.index);
           connectedNodeIndices.add(link.target.index);
         }
       });
-  
+
       //
       // (B) ALSO highlight all links that connect to that city node
       //     (i.e. city→occupation, city→anything else)
       //
       links.forEach((link, i) => {
-        if (link.source.index === cityNode.index || link.target.index === cityNode.index) {
+        if (
+          link.source.index === cityNode.index ||
+          link.target.index === cityNode.index
+        ) {
           connectedLinkIndices.add(i);
           connectedNodeIndices.add(link.source.index);
           connectedNodeIndices.add(link.target.index);
         }
       });
-    }
-    else if (cityNode) {
+    } else if (cityNode) {
       // ONLY city is highlighted => highlight all links connected to that city
       links.forEach((link, i) => {
-        if (link.source.index === cityNode.index || link.target.index === cityNode.index) {
+        if (
+          link.source.index === cityNode.index ||
+          link.target.index === cityNode.index
+        ) {
           connectedLinkIndices.add(i);
           connectedNodeIndices.add(link.source.index);
           connectedNodeIndices.add(link.target.index);
         }
       });
-    }
-    else if (stateNode) {
+    } else if (stateNode) {
       // ONLY state is highlighted => highlight all links connected to that state
       links.forEach((link, i) => {
-        if (link.source.index === stateNode.index || link.target.index === stateNode.index) {
+        if (
+          link.source.index === stateNode.index ||
+          link.target.index === stateNode.index
+        ) {
           connectedLinkIndices.add(i);
           connectedNodeIndices.add(link.source.index);
           connectedNodeIndices.add(link.target.index);
         }
       });
     }
-  
+
     // Save in state => a later useEffect or direct .attr() call updates the visuals
     setHighlightedLinks(connectedLinkIndices);
     setHighlightedNodes(connectedNodeIndices);
   }, [sankeyHighlightedCity, sankeyHighlightedState]);
-  
+
   // then you likely have another useEffect that updates the link styling:
   useEffect(() => {
     if (linkSelectionRef.current) {

@@ -32,6 +32,7 @@ export function createDropHandler({
       setTimeHighlightedState(null);
       setTimeHighlightedCity(null);
       setSankeyHighlightedState(null);
+      setSankeyHighlightedCity(null);
       return;
     }
 
@@ -40,12 +41,14 @@ export function createDropHandler({
       // Clear any time graph highlights
       setTimeHighlightedState(null);
       setTimeHighlightedCity(null);
-    //   setSankeyHighlightedState(null);
+      // Clear any sankey highlights
+      // setSankeyHighlightedState(null);
+      // setSankeyHighlightedCity(null);
       if (nodeData.type === "geoCircle") {
-        console.log("GeoMap circle dropped on geo-map. Setting map highlights");
+        // console.log("GeoMap circle dropped on geo-map. Setting map highlights");
         setHighlightedState(nodeData.state);
         setHighlightedCity(nodeData.city);
-      } else {
+      } else if (nodeData.type === "sankey") {
         // For other types (e.g., from Sankey), use layer property.
         if (nodeData.layer === 0) {
           console.log("Setting map highlightedState =>", nodeData.name);
@@ -62,6 +65,8 @@ export function createDropHandler({
       setTimeHighlightedState(null);
       setTimeHighlightedCity(null);
     //   setSankeyHighlightedState(null);
+      setSankeyHighlightedState(null);
+      setSankeyHighlightedCity(null);
       if (nodeData.type === "geoCircle") {
         console.log(
           "GeoMap circle dropped on time-graph. Setting timeHighlightedCity =>",
@@ -83,7 +88,8 @@ export function createDropHandler({
       setHighlightedCity(null);
       setTimeHighlightedState(null);
       setTimeHighlightedCity(null);
-    //   setSankeyHighlightedState(nodeData.state);
+      setSankeyHighlightedState(null);
+      setSankeyHighlightedCity(null);
       if (nodeData.type === "geoCircle") {
         console.log(
           "GeoMap circle dropped on sankey. Setting sankey highlights =>",

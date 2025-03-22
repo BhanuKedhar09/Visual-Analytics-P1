@@ -129,27 +129,22 @@ function GeographicHeatmap({
           .attr("fill", (d) => {
             // default fill color
             let fillColor = "orange";
-            if (mapHighlightedState && d.state_id === mapHighlightedState) {
-              return "red";
-            }
-            if (mapHighlightedCity && d.city === mapHighlightedCity) {
-              return "red";
-            }
-            if (highlightedState && d.state_id === highlightedState) {
-              return "red";
-            }
-            if (highlightedCity && d.city === highlightedCity) {
-              return "red";
-            }
+            if (sankeyHighlightedState && d.state === sankeyHighlightedState) return "red";
+            if (sankeyHighlightedCity && d.city === sankeyHighlightedCity) return "red";
+            if (highlightedState && d.state === highlightedState) return "red";
+            if (mapHighlightedState && d.state_id === mapHighlightedState) return "red";
+            if (mapHighlightedCity && d.city === mapHighlightedCity) return "red";
+            if (highlightedState && d.state === highlightedState) return "red";
+            if (mapHighlightedState && d.state === mapHighlightedState) return "red";
+            if (mapHighlightedCity && d.city === mapHighlightedCity) return "red";
+            if (highlightedCity && d.city === highlightedCity) return "red";
+            if (highlightedState && d.state === highlightedState) return "red";
+            if (highlightedCity && d.city === highlightedCity) return "red";
             // If the city is hovered, use red.
-            if (hoveredCity === d.city) {
-              fillColor = "red";
-            }
+            if (hoveredCity === d.city) fillColor = "red";
 
             // If the city is directly selected (via map click), use blue.
-            if (selectedCities.has(d.city)) {
-              fillColor = "blue";
-            }
+            if (selectedCities.has(d.city)) fillColor = "blue";
 
             // If a Sankey node (state) is hovered and matches this city's state, override to red.
             if (
@@ -339,6 +334,9 @@ function GeographicHeatmap({
     circlesRef.current
       .attr("fill", (d) => {
         // default fill color for cities is orange
+        if (sankeyHighlightedState && d.state === sankeyHighlightedState)
+          return "red";
+        if (highlightedState && d.state === highlightedState) return "red";
         let fillColor = "orange";
         if (highlightedState && d.state_id === highlightedState) {
           return "red";
@@ -426,6 +424,8 @@ function GeographicHeatmap({
     selectedSankeyNodes,
     highlightedState,
     highlightedCity,
+    setSankeyHighlightedState,
+    setSankeyHighlightedCity,
   ]);
   return (
     <div

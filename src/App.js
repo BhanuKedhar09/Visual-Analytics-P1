@@ -25,7 +25,7 @@ function App() {
           <h1>My Visual Analytics App</h1>
           {/* Place the Reset Button somewhere visible */}
           <div
-            style={{ position: "absolute", top: 10, right: 10, zIndex: 1000 }}
+            style={{ position: "absolute", top: 7, right: 25, zIndex: 1000 }}
           >
             <ResetSelectionsButton />
           </div>

@@ -41,9 +41,12 @@ function TimeHistogram({
     highlightedState,
     highlightedCity,
     timeHighlightedState,
-    setTimeHighlightedState,
     timeHighlightedCity,
     setTimeHighlightedCity,
+    sankeyHighlightedState,
+    setSankeyHighlightedState,
+    sankeyHighlightedCity,
+    setSankeyHighlightedCity,
   } = useContext(InteractionContext);
 
   /***************************************************
@@ -268,6 +271,10 @@ function TimeHistogram({
     dayToMerchants,
     timeHighlightedState,
     timeHighlightedCity,
+    sankeyHighlightedState,
+    setSankeyHighlightedState,
+    sankeyHighlightedCity,
+    setSankeyHighlightedCity,
   ]);
   // end ofuseEffect
   function drawHistogram(hist) {
