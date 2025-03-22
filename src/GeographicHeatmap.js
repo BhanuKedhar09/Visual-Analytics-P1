@@ -319,14 +319,6 @@ function GeographicHeatmap({
   }, [data, width, height, setHoveredCity, setSelectedCities]);
 
   useEffect(() => {
-    // console.log(
-    //   "GeographicHeatmap useEffect running. highlightedState =",
-    //   highlightedState,
-    //   "highlightedCity =",
-    //   highlightedCity
-    // );
-    // console.log("cities.length =", cities.length);
-
     if (!circlesRef.current || !cities.length) return;
 
     const hoveredDayNum = hoveredDay ? +d3.timeDay(hoveredDay) : null;

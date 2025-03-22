@@ -140,14 +140,6 @@ function TimeHistogram({
       .attr("fill", (d) => {
         const defColor = d.key === "Credit" ? "#4E79A7" : "#F28E2B";
         const dayNum = +d3.timeDay(histData[d.index].date);
-
-        // Debug log: show mapping and highlighted state for each bar
-        console.log(
-          `Bar ${d.index}: dayNum=${dayNum}, dayToStates=${Array.from(
-            dayToStates[dayNum] || []
-          )}, highlightedState=${highlightedState}`
-        );
-
         // Ephemeral (hover) conditions
         if (hoveredDayNum === dayNum) return "red";
         if (

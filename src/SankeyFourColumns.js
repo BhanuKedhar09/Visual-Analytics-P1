@@ -396,9 +396,9 @@ function SankeyFourColumns({
       // NEW: Attach drag-drop functionality
 
       const handleNodeDrop = (nodeData, containerBox, dropZone) => {
-        console.log("Node dropped:", nodeData, containerBox, dropZone);
+
         if (!dropZone) {
-          console.log("No drop zone detected—returning.", dropZone);
+
           // Reset the highlights so that if the user drags outside any valid zone,
           // the highlight variables are cleared.
           setHighlightedState(null);
@@ -415,27 +415,22 @@ function SankeyFourColumns({
           setTimeHighlightedState(null);
           setTimeHighlightedCity(null);
           if (nodeData.layer === 0) {
-            console.log("Setting highlightedState =>", nodeData.name);
             // For instance: call your context setter or a function to highlight state circles.
             setHighlightedState(nodeData.name);
-            // console.log("Highlight all circles for state:", nodeData.name);
           }
           // If a city node (layer 1), highlight just that city circle.
           else if (nodeData.layer === 1) {
-            console.log("Setting highlightedCity =>", nodeData.name);
             setHighlightedCity(nodeData.name);
+            setSankeyHighlightedCity(nodeData.name);
             // highlightCityOnMap(nodeData.name);
-            // console.log("Highlight circle for city:", nodeData.name);
           }
         } else if (dropZone.id === "time-graph") {
-          console.log("came into timegraph");
           setHighlightedState(null);
           setHighlightedCity(null);
           if (nodeData.layer === 0) {
             setTimeHighlightedState(nodeData.name);
           } else if (nodeData.layer === 1) {
             setTimeHighlightedCity(nodeData.name);
-            // console.log("Highlight time data for city:", nodeData.name);
           }
         }
       };
