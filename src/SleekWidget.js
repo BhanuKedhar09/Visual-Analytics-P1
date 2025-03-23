@@ -2,6 +2,8 @@
 import React, { useState, Children, cloneElement } from "react";
 import { Rnd } from "react-rnd";
 
+
+const globalZIndexCounter = { current: 1 };
 function SleekWidget({
   title = "Widget",
   initialWidth = 600,
@@ -19,6 +21,7 @@ function SleekWidget({
 
   const [isMinimized, setIsMinimized] = useState(false);
   const [prevSize, setPrevSize] = useState(size);
+  const [zIndex, setZIndex] = useState(1);
 
   const handleMinimize = () => {
     if (!isMinimized) {
@@ -46,11 +49,16 @@ function SleekWidget({
   } else if (!isMinimized) {
     content = children;
   }
+  const handleDragStart = () => {
+    globalZIndexCounter.current++;
+    setZIndex(globalZIndexCounter.current);
+    };
 
   return (
     <Rnd
       position={position}
       size={size}
+      onDragStart={(e, data) => handleDragStart()}
       onDragStop={(e, data) => setPosition({ x: data.x, y: data.y })}
       onResizeStop={(e, direction, ref, delta, pos) => {
         setSize({
@@ -69,6 +77,7 @@ function SleekWidget({
         display: "flex",
         flexDirection: "column",
         borderRadius: "8px",
+        zIndex: zIndex,
       }}
       dragHandleClassName="sleek-widget-header"
     >
