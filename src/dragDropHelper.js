@@ -135,6 +135,7 @@ export function enableCopyAndDrag(selection, onDragEndCallback = null) {
         .style("width", shapePageWidth + "px")
         .style("height", shapePageHeight + "px")
         .style("z-index", 9999)
+        .style("overflow", "visible")
         .style("pointer-events", "all");
 
       // 3) Append an <svg> inside the container sized to that bounding box
@@ -232,6 +233,21 @@ export function enableCopyAndDrag(selection, onDragEndCallback = null) {
         nodeData: original.datum(),
         onDragEndCallback: onDragEndCallback,
       });
+      const d = original.datum();
+      if (d && d.type === "sankeyNode") {
+        // Add a label for sankeyNode type (optional)
+        container
+          .append("div")
+          .classed("drag-label", true)
+          .style("position", "absolute")
+          .style("left", (shapePageWidth + 2) + "px")
+          .style("top", "0px")
+          .style("font-size", "12px")
+          .style("color", "black")
+          .style("background", "transparent")
+          .text(d.name);
+      }
+
 
       // 8) Attach a D3 drag behavior to the container
       container.call(
