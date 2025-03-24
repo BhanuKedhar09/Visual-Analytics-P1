@@ -11,3 +11,36 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Add animation for connection lines */
+@keyframes dash {
+  from {
+    stroke-dashoffset: 20;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.connection-line {
+  animation: dash 1s linear infinite;
+}
+
+/* Tooltip styling for visualization elements */
+.tooltip {
+  position: absolute;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 4px;
+  pointer-events: none;
+  font-size: 12px;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+/* Ensure time bars are visible with some padding */
+.time-histogram-bar {
+  shape-rendering: crispEdges;
+}

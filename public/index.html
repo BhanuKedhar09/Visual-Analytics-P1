@@ -24,7 +24,32 @@
       work correctly both with client-side routing and a non-root public URL.
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
-    <title>React App</title>
+    <style>
+      .connection-line {
+        stroke-dashoffset: 0;
+        animation: dash 1s linear infinite;
+      }
+      
+      @keyframes dash {
+        to {
+          stroke-dashoffset: 24;
+        }
+      }
+      
+      .tooltip {
+        position: absolute;
+        pointer-events: none;
+        opacity: 0;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        padding: 5px 10px;
+        transition: opacity 0.2s;
+        z-index: 1000;
+        font-size: 12px;
+      }
+    </style>
+    <title>Visual Analytics Dashboard</title>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

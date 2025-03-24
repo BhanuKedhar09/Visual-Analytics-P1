@@ -1,4 +1,3 @@
-// InteractionContext.js
 import React, { createContext, useState, useEffect } from "react";
 
 export const InteractionContext = createContext();
@@ -13,23 +12,22 @@ export function InteractionProvider({ children }) {
   const [selectedSankeyNodes, setSelectedSankeyNodes] = useState(new Set());
   const [highlightedState, setHighlightedState] = useState(null);
   const [highlightedCity, setHighlightedCity] = useState(null);
-  const [interactionState, setInteractionState] = useState({
-    highlightedState: null,
-    highlightedCity: null,
-  });
   const [timeHighlightedState, setTimeHighlightedState] = useState(null);
   const [timeHighlightedCity, setTimeHighlightedCity] = useState(null);
   const [sankeyHighlightedState, setSankeyHighlightedState] = useState(null);
   const [sankeyHighlightedCity, setSankeyHighlightedCity] = useState(null);
 
-  const updateInteractionContext = (updates) => {
-    setInteractionState((prev) => ({ ...prev, ...updates }));
-  };
-  // Debug effect: log whenever highlight changes
-  // useEffect(() => {
-  //   console.log("highlightedState changed:", highlightedState);
-  //   console.log("highlightedCity changed:", highlightedCity);
-  // }, [highlightedState, highlightedCity]);
+  // NEW: Global mapping of city → Set of day numbers (and its setter)
+  const [cityToDays, setCityToDays] = useState({});
+
+  // Existing global mapping (if needed separately)
+  const [cityToDaysGlobal, setCityToDaysGlobal] = useState({});
+
+  // Day mappings for cross-filtering
+  const [dayToStates, setDayToStates] = useState({});
+  const [dayToCities, setDayToCities] = useState({});
+  const [dayToOccupations, setDayToOccupations] = useState({});
+  const [dayToMerchants, setDayToMerchants] = useState({});
 
   function resetSelections() {
     setHoveredDay(null);
@@ -43,8 +41,6 @@ export function InteractionProvider({ children }) {
     setHighlightedCity(null);
     setTimeHighlightedState(null);
     setTimeHighlightedCity(null);
-    // setMapHighlightedState(null);
-    // setMapHighlightedCity(null);
     setSankeyHighlightedState(null);
     setSankeyHighlightedCity(null);
   }
@@ -79,7 +75,20 @@ export function InteractionProvider({ children }) {
         setSankeyHighlightedState,
         sankeyHighlightedCity,
         setSankeyHighlightedCity,
-        // interactionState,
+        // City-day mappings
+        cityToDays,
+        setCityToDays,
+        cityToDaysGlobal,
+        setCityToDaysGlobal,
+        // Day mappings for cross-filtering
+        dayToStates,
+        setDayToStates,
+        dayToCities,
+        setDayToCities,
+        dayToOccupations,
+        setDayToOccupations,
+        dayToMerchants,
+        setDayToMerchants,
       }}
     >
       {children}

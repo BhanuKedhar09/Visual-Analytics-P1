@@ -1,4 +1,3 @@
-// App.js
 import React from "react";
 import "./App.css";
 import { DataProvider } from "./DataLoader";
@@ -9,6 +8,8 @@ import SankeyFourColumns from "./SankeyFourColumns";
 import ResetSelectionsButton from "./ResetSelectionsButton";
 import SleekWidget from "./SleekWidget";
 import CircleBipartite from "./CircleBipartite";
+import LineOverlay from "./LineOverlay";
+
 function App() {
   return (
     <DataProvider>
@@ -72,20 +73,6 @@ function App() {
               minFreq={2} // or 3 or 5
             />
           </SleekWidget>
-          {/* <SleekWidget
-            title="State → City → Occupation → Merchant"
-            initialWidth={440}
-            initialHeight={950}
-            initialX={1120}
-            initialY={1}
-          >
-            <SankeyFourColumns
-              // minFlow={2}
-              maxMerchants={40}
-              // nodeWidthPx={10}
-              // nodePaddingPx={20}
-            />
-          </SleekWidget> */}
           <SleekWidget
             title="State → City → Occupation → Merchant"
             initialWidth={440}
@@ -96,12 +83,10 @@ function App() {
             <SankeyFourColumns
               id="sankey"
               className="drop-zone"
-              // minFlow={2}
               maxMerchants={40}
-              // nodeWidthPx={10}
-              // nodePaddingPx={20}
             />
           </SleekWidget>
+          <LineOverlay /> {/* NEW: Overlay for drawing cross-view linking lines */}
         </div>
       </InteractionProvider>
     </DataProvider>

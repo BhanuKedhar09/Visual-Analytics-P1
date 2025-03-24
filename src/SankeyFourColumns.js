@@ -40,6 +40,7 @@ function SankeyFourColumns({
     setSankeyHighlightedState,
     sankeyHighlightedCity,
     setSankeyHighlightedCity,
+    cityToDaysGlobal,
   } = useContext(InteractionContext);
 
   const containerRef = useRef(null);
@@ -344,6 +345,7 @@ function SankeyFourColumns({
         .data(sankeyLayout.nodes)
         .enter()
         .append("rect")
+        .attr("id", (d) => "sankey-node-" + d.name)
         .attr("x", (d) => d.x0)
         .attr("y", (d) => d.y0)
         .attr("width", (d) => d.x1 - d.x0)
@@ -357,7 +359,111 @@ function SankeyFourColumns({
           return "#E15759"; // merchant
         })
         .on("mouseover", (evt, d) => {
-          setHoveredSankey({ layer: d.layer, name: d.name, index: d.index });
+          if (!sankeyLayoutRef.current) return;
+          
+          console.log("DEBUG: Sankey node hovered", d.layer, d.name);
+          
+          // Initialize empty arrays to collect connected elements
+          let connectedCities = [];
+          let connectedDays = new Set();
+          
+          if (d.layer === 0) {
+            // For a state node, gather connected city names from sankey links.
+            console.log("Finding cities connected to state:", d.name);
+            const links = sankeyLayoutRef.current.links;
+            links.forEach((link) => {
+              if (link.source.index === d.index && link.target.layer === 1) {
+                connectedCities.push(link.target.name);
+                console.log(`Connected city from links: ${link.target.name}`);
+              }
+              if (link.target.index === d.index && link.source.layer === 1) {
+                connectedCities.push(link.source.name);
+                console.log(`Connected city from links: ${link.source.name}`);
+              }
+            });
+            connectedCities = Array.from(new Set(connectedCities));
+            console.log(`Found ${connectedCities.length} unique connected cities`);
+            
+            // Get days that correspond to the connected cities
+            console.log(`Collecting days for ${connectedCities.length} cities`);
+            connectedCities.forEach((cityName) => {
+              const cityDays = cityToDaysGlobal[cityName];
+              if (!cityDays) {
+                console.log(`No days found for city: ${cityName}`);
+                return;
+              }
+              
+              console.log(`cityToDaysGlobal for ${cityName}:`, 
+                cityDays instanceof Set ? 
+                `Set with ${cityDays.size} items` : 
+                `${typeof cityDays} with ${Object.keys(cityDays).length} items`);
+              
+              // Handle both Set objects and arrays
+              const daySet = cityDays instanceof Set ? cityDays : new Set(cityDays);
+              
+              daySet.forEach((dayNum) => {
+                // Ensure dayNum is treated as a number
+                const numericDayNum = +dayNum;
+                if (isNaN(numericDayNum)) {
+                  console.error(`Invalid dayNum: ${dayNum}`);
+                  return;
+                }
+                
+                const date = new Date(numericDayNum);
+                // Format MUST match exactly what's used in TimeHistogram
+                const dayStr = d3.timeFormat("%Y-%m-%d")(date);
+                connectedDays.add(dayStr);
+              });
+            });
+            console.log(`Found ${connectedDays.size} unique days connected to state ${d.name}`);
+          } else if (d.layer === 1) {
+            // If it's a city node
+            connectedCities = [d.name]; // draw line from sankey-node -> geo-circle
+            console.log(`City node ${d.name} -> geocircle connection`);
+            
+            const cityDays = cityToDaysGlobal[d.name];
+            if (cityDays) {
+              console.log(`cityToDaysGlobal for ${d.name}:`, 
+                cityDays instanceof Set ? 
+                `Set with ${cityDays.size} items` : 
+                `${typeof cityDays} with ${Object.keys(cityDays).length} items`);
+                
+              // Handle both Set objects and arrays
+              const daySet = cityDays instanceof Set ? cityDays : new Set(cityDays);
+              console.log(`Day set has ${daySet.size} items`);
+              
+              daySet.forEach((dayNum) => {
+                // Ensure dayNum is treated as a number
+                const numericDayNum = +dayNum;
+                if (isNaN(numericDayNum)) {
+                  console.error(`Invalid dayNum: ${dayNum}`);
+                  return;
+                }
+                
+                const date = new Date(numericDayNum);
+                // Format MUST match exactly what's used in TimeHistogram
+                const dayStr = d3.timeFormat("%Y-%m-%d")(date);
+                connectedDays.add(dayStr);
+                console.log(`Adding connected day: ${dayStr} for city ${d.name}`);
+              });
+            } else {
+              console.error(`No days found for city: ${d.name} in cityToDaysGlobal`);
+              console.log("cityToDaysGlobal keys:", Object.keys(cityToDaysGlobal || {}).slice(0, 10));
+            }
+          }
+          
+          const days = Array.from(connectedDays);
+          console.log(`Setting hoveredSankey with ${connectedCities.length} cities and ${days.length} days`);
+          
+          setHoveredSankey({
+            layer: d.layer,
+            name: d.name,
+            index: d.index,
+            connectedDays: days,
+            connectedCities,
+          });
+          
+          // Now highlight sankey links...
           linkGroup
             .selectAll("path")
             .attr("stroke", (link) =>
@@ -396,9 +502,7 @@ function SankeyFourColumns({
       // NEW: Attach drag-drop functionality
 
       const handleNodeDrop = (nodeData, containerBox, dropZone) => {
-
         if (!dropZone) {
-
           // Reset the highlights so that if the user drags outside any valid zone,
           // the highlight variables are cleared.
           setHighlightedState(null);
@@ -443,6 +547,7 @@ function SankeyFourColumns({
         setSankeyHighlightedState,
         sankeyHighlightedCity,
         setSankeyHighlightedCity,
+        cityToDaysGlobal,
       });
       // enableCopyAndDrag(nodeSel, handleNodeDrop);
       enableCopyAndDrag(nodeSel, handleDrop);

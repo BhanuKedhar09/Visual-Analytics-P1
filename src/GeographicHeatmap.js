@@ -17,7 +17,7 @@ function GeographicHeatmap({
   const gMapRef = useRef(null);
 
   const [cities, setCities] = useState([]);
-  const [cityToDays, setCityToDays] = useState({}); // city => Set of dayNum
+  // const [cityToDays, setCityToDays, cityToDaysGlobal, setCityToDaysGlobal] = useState({}); // city => Set of dayNum
 
   const { data } = useContext(DataContext);
   const {
@@ -43,6 +43,10 @@ function GeographicHeatmap({
     setSankeyHighlightedState,
     sankeyHighlightedCity,
     setSankeyHighlightedCity,
+    cityToDays,
+    setCityToDays,
+    setCityToDaysGlobal,
+    cityToDaysGlobal,
   } = useContext(InteractionContext);
 
   /*******************************************
@@ -79,6 +83,7 @@ function GeographicHeatmap({
       ctd[c.city] = c.days;
     }
     setCityToDays(ctd);
+    setCityToDaysGlobal(ctd);
 
     // 2) draw map
     const svg = d3
@@ -117,6 +122,7 @@ function GeographicHeatmap({
           .data(cityArr)
           .enter()
           .append("circle")
+          .attr("id", (d) => "geo-circle-" + d.city)
           .attr("cx", (d) => {
             const coords = projection([d.lng, d.lat]);
             return coords ? coords[0] : -9999;
@@ -129,14 +135,20 @@ function GeographicHeatmap({
           .attr("fill", (d) => {
             // default fill color
             let fillColor = "orange";
-            if (sankeyHighlightedState && d.state === sankeyHighlightedState) return "red";
-            if (sankeyHighlightedCity && d.city === sankeyHighlightedCity) return "red";
+            if (sankeyHighlightedState && d.state === sankeyHighlightedState)
+              return "red";
+            if (sankeyHighlightedCity && d.city === sankeyHighlightedCity)
+              return "red";
             if (highlightedState && d.state === highlightedState) return "red";
-            if (mapHighlightedState && d.state_id === mapHighlightedState) return "red";
-            if (mapHighlightedCity && d.city === mapHighlightedCity) return "red";
+            if (mapHighlightedState && d.state_id === mapHighlightedState)
+              return "red";
+            if (mapHighlightedCity && d.city === mapHighlightedCity)
+              return "red";
             if (highlightedState && d.state === highlightedState) return "red";
-            if (mapHighlightedState && d.state === mapHighlightedState) return "red";
-            if (mapHighlightedCity && d.city === mapHighlightedCity) return "red";
+            if (mapHighlightedState && d.state === mapHighlightedState)
+              return "red";
+            if (mapHighlightedCity && d.city === mapHighlightedCity)
+              return "red";
             if (highlightedCity && d.city === highlightedCity) return "red";
             if (highlightedState && d.state === highlightedState) return "red";
             if (highlightedCity && d.city === highlightedCity) return "red";
@@ -267,6 +279,17 @@ function GeographicHeatmap({
           setSankeyHighlightedState, // add this
           sankeyHighlightedCity, // add this
           setSankeyHighlightedCity,
+          setCityToDaysGlobal,
+          cityToDaysGlobal,
+          hoveredCity,
+          hoveredDay,
+          selectedDays,
+          selectedCities,
+          selectedSankeyNodes,
+          cityToDays,
+          setCityToDays,
+          setCityToDaysGlobal,
+          cityToDaysGlobal,
         });
         enableCopyAndDrag(circleSel, handleDrop);
         circlesRef.current = circleSel;
