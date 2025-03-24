@@ -1,25 +1,12 @@
-import React, { useContext, useEffect, useState, useRef } from "react";
-import { InteractionContext } from "./InteractionContext";
+import React, { useRef, useEffect, useState, useContext } from "react";
 import * as d3 from "d3";
-
-// Helper function to compute an element's center given its id.
-function getElementCenter(id) {
-  const el = document.getElementById(id);
-  if (!el) {
-    console.log(`Element with id ${id} not found`);
-    return null;
-  }
-  const rect = el.getBoundingClientRect();
-  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-}
+import { InteractionContext } from "./InteractionContext";
 
 const LineOverlay = () => {
   const { 
     hoveredSankey,
     dayToStates,
-    dayToCities,
-    dayToOccupations,
-    dayToMerchants 
+    dayToCities
   } = useContext(InteractionContext);
   
   const [lines, setLines] = useState([]);
@@ -29,259 +16,254 @@ const LineOverlay = () => {
   useEffect(() => {
     // Clear lines if nothing is hovered
     if (!hoveredSankey) {
-      console.log("DEBUG: No sankey node hovered, clearing lines");
       setLines([]);
       return;
     }
 
-    console.log("=====================================================");
-    console.log("DEBUG - LineOverlay: Sankey node hovered!", hoveredSankey);
-    console.log("Layer:", hoveredSankey.layer, "Name:", hoveredSankey.name);
+    // Detailed diagnostics of hoveredSankey
+    console.log("LINE OVERLAY - DETAILED HOVERED SANKEY DIAGNOSTICS:");
+    console.log("=======================================================");
+    console.log("FULL hoveredSankey object:", hoveredSankey);
+    console.log("hoveredSankey.layer:", hoveredSankey.layer);
+    console.log("hoveredSankey.name:", hoveredSankey.name);
+    console.log("hoveredSankey.index:", hoveredSankey.index);
+    console.log("hoveredSankey.connectedCities:", hoveredSankey.connectedCities);
+    console.log("hoveredSankey.connectedDays:", hoveredSankey.connectedDays);
+    console.log("connectedDays length:", hoveredSankey.connectedDays ? hoveredSankey.connectedDays.length : 0);
+    console.log("connectedDays type:", hoveredSankey.connectedDays ? typeof hoveredSankey.connectedDays : "undefined");
+    console.log("Is connectedDays array?", hoveredSankey.connectedDays ? Array.isArray(hoveredSankey.connectedDays) : "N/A");
     
-    if (hoveredSankey.connectedCities) {
-      console.log("Connected cities:", hoveredSankey.connectedCities);
-    } else {
-      console.error("ERROR: connectedCities is missing in hoveredSankey!");
+    // NEW CODE: Calculate days to highlight based on dayToStates/dayToCities
+    console.log("CALCULATING DAYS TO HIGHLIGHT USING TIME HISTOGRAM APPROACH:");
+    console.log("=======================================================");
+    
+    // Collect days that should be highlighted based on the Sankey node
+    const daysToHighlight = new Set();
+    
+    if (hoveredSankey.layer === 0) {
+      // State node - use dayToStates
+      console.log(`Finding days for state: ${hoveredSankey.name}`);
+      
+      if (dayToStates && Object.keys(dayToStates).length > 0) {
+        // Check each day in dayToStates to see if it contains this state
+        Object.entries(dayToStates).forEach(([dayNum, states]) => {
+          if (states && states.has(hoveredSankey.name)) {
+            // Convert dayNum to date string format used by time bars
+            const date = new Date(+dayNum);
+            const dateStr = d3.timeFormat("%Y-%m-%d")(date);
+            daysToHighlight.add(dateStr);
+          }
+        });
+        
+        console.log(`Found ${daysToHighlight.size} days for state ${hoveredSankey.name}`);
+        console.log("First 10 days:", Array.from(daysToHighlight).slice(0, 10));
+        
+        // Log time bar IDs we should connect to
+        console.log("Time bar IDs to connect to:", 
+          Array.from(daysToHighlight).slice(0, 10).map(day => `time-bar-${day}`)
+        );
+      } else {
+        console.log("ERROR: dayToStates is empty or undefined");
+      }
+    } else if (hoveredSankey.layer === 1) {
+      // City node - use dayToCities
+      console.log(`Finding days for city: ${hoveredSankey.name}`);
+      
+      if (dayToCities && Object.keys(dayToCities).length > 0) {
+        // Check each day in dayToCities to see if it contains this city
+        Object.entries(dayToCities).forEach(([dayNum, cities]) => {
+          if (cities && cities.has(hoveredSankey.name)) {
+            // Convert dayNum to date string format used by time bars
+            const date = new Date(+dayNum);
+            const dateStr = d3.timeFormat("%Y-%m-%d")(date);
+            daysToHighlight.add(dateStr);
+          }
+        });
+        
+        console.log(`Found ${daysToHighlight.size} days for city ${hoveredSankey.name}`);
+        console.log("First 10 days:", Array.from(daysToHighlight).slice(0, 10));
+        
+        // Log time bar IDs we should connect to
+        console.log("Time bar IDs to connect to:", 
+          Array.from(daysToHighlight).slice(0, 10).map(day => `time-bar-${day}`)
+        );
+      } else {
+        console.log("ERROR: dayToCities is empty or undefined");
+      }
     }
     
-    if (hoveredSankey.connectedDays) {
-      console.log("Connected days:", hoveredSankey.connectedDays);
-    } else {
-      console.error("ERROR: connectedDays is missing in hoveredSankey!");
-    }
+    console.log("=======================================================");
     
-    // Log day mappings 
-    console.log("dayToStates available:", Object.keys(dayToStates || {}).length);
-    console.log("dayToCities available:", Object.keys(dayToCities || {}).length);
-
+    // Original code continues...
+    console.log("OVERLAY DEBUG: hoveredSankey =", hoveredSankey);
+    console.log("OVERLAY DEBUG: connectedDays =", hoveredSankey.connectedDays);
+    
     // First, find the source element (Sankey node)
     const sourceEl = document.getElementById(`sankey-node-${hoveredSankey.name}`);
     if (!sourceEl) {
       console.error(`ERROR: Can't find Sankey node element with ID 'sankey-node-${hoveredSankey.name}'`);
-      // List all elements with ids starting with 'sankey-node-'
-      const allSankeyNodes = Array.from(document.querySelectorAll('[id^="sankey-node-"]'));
-      console.log("Available sankey nodes:", allSankeyNodes.map(el => el.id));
       return;
     }
 
-    console.log("SUCCESS: Found source Sankey node element:", sourceEl.id);
     const sourceRect = sourceEl.getBoundingClientRect();
     const sourceCenter = {
       x: sourceRect.left + sourceRect.width / 2,
       y: sourceRect.top + sourceRect.height / 2
     };
-    console.log("Source center position:", sourceCenter);
 
-    let newLines = [];
-    let connectedCityElements = [];
-
-    // 1. Connect to cities
-    if (hoveredSankey.connectedCities && hoveredSankey.connectedCities.length > 0) {
-      console.log(`Trying to connect to ${hoveredSankey.connectedCities.length} cities...`);
+    // Only create specific connections, no fallbacks
+    let specificLines = [];
+    
+    // 2. First, connect to cities if available
+    if (hoveredSankey.connectedCities && Array.isArray(hoveredSankey.connectedCities) && 
+        hoveredSankey.connectedCities.length > 0) {
+      
+      let validCityConnections = 0;
+      
       hoveredSankey.connectedCities.forEach(city => {
-        console.log(`Looking for city element with ID 'geo-circle-${city}'`);
-        const targetEl = document.getElementById(`geo-circle-${city}`);
-        if (targetEl) {
-          console.log(`SUCCESS: Found city circle for ${city}`);
-          const targetRect = targetEl.getBoundingClientRect();
-          const cityCenter = {
-            x: targetRect.left + targetRect.width / 2,
-            y: targetRect.top + targetRect.height / 2
-          };
+        // Skip if city name is not a string or is empty
+        if (typeof city !== 'string' || !city.trim()) {
+          return;
+        }
+        
+        const cityId = `geo-circle-${city}`;
+        const cityEl = document.getElementById(cityId);
+        
+        // Only proceed if element exists and has proper dimensions
+        if (cityEl && cityEl.tagName.toLowerCase() === 'circle') {
+          const cityRect = cityEl.getBoundingClientRect();
           
-          // Store references to connected city elements for later
-          connectedCityElements.push({
-            city: city,
-            center: cityCenter
-          });
-          
-          // Add Sankey -> City line
-          newLines.push({
-            from: sourceCenter,
-            to: cityCenter,
-            type: "city"
-          });
-          console.log(`Added line: Sankey -> City (${city})`);
-        } else {
-          console.error(`ERROR: Could not find geo-circle-${city} element`);
-          // List all geo circles to see what's available
-          const allGeoCircles = Array.from(document.querySelectorAll('[id^="geo-circle-"]'));
-          console.log("Available geo circles:", allGeoCircles.map(el => el.id).slice(0, 10), "...");
+          // Verify we have a valid rectangle with dimensions
+          if (cityRect && cityRect.width > 0 && cityRect.height > 0) {
+            const cityCenter = {
+              x: cityRect.left + cityRect.width / 2,
+              y: cityRect.top + cityRect.height / 2
+            };
+            
+            // Only add if coordinates are valid numbers
+            if (!isNaN(cityCenter.x) && !isNaN(cityCenter.y) && 
+                !isNaN(sourceCenter.x) && !isNaN(sourceCenter.y)) {
+              
+              specificLines.push({
+                from: sourceCenter,
+                to: cityCenter,
+                type: "city"
+              });
+              
+              validCityConnections++;
+            }
+          }
         }
       });
-    } else {
-      console.log("No connected cities to draw lines to");
-    }
-
-    // 2. Find matching time bars
-    const allTimeBars = document.querySelectorAll('.time-histogram-bar');
-    console.log(`Found ${allTimeBars.length} time histogram bars total`);
-    
-    if (allTimeBars.length > 0) {
-      // Convert the bars to an array for easier processing
-      const barsArray = Array.from(allTimeBars);
-      console.log("Bar attributes example:", barsArray[0].getAttribute('data-date'));
       
-      // Create a function to check if a time bar should be connected
-      const shouldConnect = (bar) => {
-        // Get the date information from the bar
-        const dateStr = bar.getAttribute('data-date');
-        if (!dateStr) {
-          console.log("No data-date attribute on bar", bar.id);
-          return false;
-        }
+      console.log(`Created ${validCityConnections} validated city connections`);
+    }
+    
+    // 3. Now handle time bar connections - use our calculated days approach
+    let timeBarConnections = 0;
+    const MAX_CONNECTIONS = 50;
+    
+    // Get all available days to connect to
+    const allDaysToTry = new Set();
+    
+    // First try days from our calculated approach
+    if (daysToHighlight.size > 0) {
+      daysToHighlight.forEach(day => allDaysToTry.add(day));
+    }
+    
+    // Then try days from hoveredSankey.connectedDays if available
+    if (hoveredSankey.connectedDays && hoveredSankey.connectedDays.length > 0) {
+      hoveredSankey.connectedDays.forEach(day => allDaysToTry.add(day));
+    }
+    
+    console.log(`Total unique days to try connecting: ${allDaysToTry.size}`);
+    
+    // Convert to array and limit connections
+    const daysArray = Array.from(allDaysToTry).slice(0, MAX_CONNECTIONS);
+    
+    // Only connect to actual time bar elements with careful validation
+    daysArray.forEach(dayStr => {
+      // Verify the dayStr has the right format (YYYY-MM-DD)
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dayStr)) {
+        console.log(`Skipping invalid date format: ${dayStr}`);
+        return; // Skip this iteration
+      }
+      
+      const timeBarId = `time-bar-${dayStr}`;
+      const barEl = document.getElementById(timeBarId);
+      
+      // Strict validation of element
+      if (barEl && barEl.classList.contains('time-histogram-bar')) {
+        const barRect = barEl.getBoundingClientRect();
         
-        // Convert to a date for comparison
-        const date = new Date(dateStr);
-        const timestamp = +date;
-        
-        // Different logic based on layer
-        if (hoveredSankey.layer === 0) { // State node
-          // Find all days that have this state
-          for (const [dayNum, states] of Object.entries(dayToStates || {})) {
-            if (+dayNum === timestamp && states.has && states.has(hoveredSankey.name)) {
-              console.log(`Match for state ${hoveredSankey.name} on date ${dateStr}`);
-              return true;
-            }
+        // Only proceed if we got a valid rectangle with non-zero dimensions
+        if (barRect && barRect.width > 0 && barRect.height > 0) {
+          const barCenter = {
+            x: barRect.left + barRect.width / 2,
+            y: barRect.top + barRect.height / 2
+          };
+          
+          // Only add the line if the coordinates are valid numbers
+          if (!isNaN(barCenter.x) && !isNaN(barCenter.y) && 
+              !isNaN(sourceCenter.x) && !isNaN(sourceCenter.y)) {
+            
+            specificLines.push({
+              from: sourceCenter,
+              to: barCenter,
+              type: "time"
+            });
+            
+            timeBarConnections++;
           }
-        } 
-        else if (hoveredSankey.layer === 1) { // City node
-          // Find all days that have this city
-          for (const [dayNum, cities] of Object.entries(dayToCities || {})) {
-            if (+dayNum === timestamp && cities.has && cities.has(hoveredSankey.name)) {
-              console.log(`Match for city ${hoveredSankey.name} on date ${dateStr}`);
-              return true;
-            }
-          }
         }
-        
-        // Try another approach - check against connectedDays directly
-        if (hoveredSankey.connectedDays && hoveredSankey.connectedDays.includes(dateStr)) {
-          console.log(`Direct match with connectedDays for date ${dateStr}`);
-          return true;
-        }
-        
-        return false;
+      }
+    });
+    
+    console.log(`Created ${timeBarConnections} specific time bar connections`);
+    console.log(`Total connections: ${specificLines.length}`);
+    
+    // Final safety filter - remove any connections that might be to container elements
+    const timeGraphEl = document.getElementById("time-graph");
+    
+    if (timeGraphEl) {
+      const graphRect = timeGraphEl.getBoundingClientRect();
+      const graphCenter = {
+        x: graphRect.left + graphRect.width / 2,
+        y: graphRect.top + graphRect.height / 2
       };
       
-      // Find matching bars
-      const matchingBars = barsArray.filter(shouldConnect);
-      console.log(`Found ${matchingBars.length} matching time bars`);
-      
-      if (matchingBars.length > 0) {
-        console.log("First matching bar info:", matchingBars[0].id, matchingBars[0].getAttribute('data-date'));
-        
-        // If we have connected cities, connect each city to each matching time bar
-        if (connectedCityElements.length > 0) {
-          console.log(`Connecting ${connectedCityElements.length} cities to ${matchingBars.length} time bars`);
-          connectedCityElements.forEach(cityElement => {
-            matchingBars.forEach(bar => {
-              const rect = bar.getBoundingClientRect();
-              const barCenter = {
-                x: rect.left + rect.width / 2,
-                y: rect.top + rect.height / 2
-              };
-              
-              // Add City -> Time bar line
-              newLines.push({
-                from: cityElement.center,
-                to: barCenter,
-                type: "city-to-time"
-              });
-              console.log(`Added line: City ${cityElement.city} -> Time bar`);
-            });
-          });
-        }
-        
-        // Also connect directly from Sankey to time bars
-        matchingBars.forEach(bar => {
-          const rect = bar.getBoundingClientRect();
-          const barCenter = {
-            x: rect.left + rect.width / 2,
-            y: rect.top + rect.height / 2
-          };
+      // Filter out any connections that appear to be connecting to the time graph center
+      const safeConnections = specificLines.filter(line => {
+        // If this is a time connection
+        if (line.type === "time") {
+          // Calculate distance to graph center
+          const distanceToCenter = Math.sqrt(
+            Math.pow(line.to.x - graphCenter.x, 2) + 
+            Math.pow(line.to.y - graphCenter.y, 2)
+          );
           
-          newLines.push({
-            from: sourceCenter,
-            to: barCenter,
-            type: "time"
-          });
-          console.log(`Added line: Sankey -> Time bar`);
-        });
-      }
-      // Fallback if no specific bars found but we should have some
-      else if (hoveredSankey.connectedDays && hoveredSankey.connectedDays.length > 0) {
-        console.log("No matching time bars found despite having connected days, using fallback");
-        const timeGraph = document.getElementById("time-graph");
-        if (timeGraph) {
-          console.log("Found time-graph container for fallback");
-          const rect = timeGraph.getBoundingClientRect();
-          const timeCenter = {
-            x: rect.left + rect.width / 2,
-            y: rect.top + rect.height / 2
-          };
-          
-          // Direct connection from Sankey to time graph
-          newLines.push({
-            from: sourceCenter,
-            to: timeCenter,
-            type: "time-fallback"
-          });
-          console.log("Added fallback line: Sankey -> Time graph container");
-          
-          // Also connect from cities to time graph if we have cities
-          if (connectedCityElements.length > 0) {
-            connectedCityElements.forEach(cityElement => {
-              newLines.push({
-                from: cityElement.center,
-                to: timeCenter,
-                type: "city-to-time-fallback"
-              });
-              console.log(`Added fallback line: City ${cityElement.city} -> Time graph container`);
-            });
+          // If it's too close to the center (likely a fallback), filter it out
+          if (distanceToCenter < 40) {
+            console.log("Removed a suspected fallback connection to time graph");
+            return false;
           }
-        } else {
-          console.error("ERROR: Could not find time-graph element for fallback");
         }
-      }
-    } else {
-      console.error("ERROR: No time histogram bars found in the document");
-    }
-    
-    console.log(`FINAL: Creating ${newLines.length} connection lines`);
-    
-    // IMPORTANT FALLBACK: Even if we didn't find any matching elements to draw lines to,
-    // always add at least one line from the Sankey node to the time graph area
-    if (newLines.length === 0) {
-      console.log("WARNING: No lines created - adding emergency fallback line");
-      
-      // Try to find the time-graph element
-      const timeGraph = document.getElementById("time-graph");
-      if (timeGraph) {
-        const timeRect = timeGraph.getBoundingClientRect();
-        const timeCenter = {
-          x: timeRect.left + timeRect.width / 2,
-          y: timeRect.top + timeRect.height / 2
-        };
         
-        // Add a direct fallback line
-        newLines.push({
-          from: sourceCenter,
-          to: timeCenter,
-          type: "emergency-fallback"
-        });
-        console.log("Added emergency fallback line");
+        return true;
+      });
+      
+      // Log how many connections were removed as suspected fallbacks
+      if (safeConnections.length < specificLines.length) {
+        console.log(`Removed ${specificLines.length - safeConnections.length} suspected fallback connections`);
       }
+      
+      // Set the final safe connections
+      setLines(safeConnections);
+    } else {
+      // If we can't find the time graph, just use the connections as is
+      setLines(specificLines);
     }
-    
-    console.log("=====================================================");
-    setLines(newLines);
-  }, [hoveredSankey, dayToStates, dayToCities, dayToOccupations, dayToMerchants]);
-
-  // Log whenever the lines state changes
-  useEffect(() => {
-    console.log(`LineOverlay: lines state updated, now has ${lines.length} lines`);
-  }, [lines]);
+  }, [hoveredSankey, dayToStates, dayToCities]);
 
   // This will handle the SVG update whenever the window changes size
   useEffect(() => {
@@ -309,82 +291,60 @@ const LineOverlay = () => {
         width: "100vw", 
         height: "100vh",
         pointerEvents: "none",
-        zIndex: 9999, // Super high z-index to ensure it's visible above everything
+        zIndex: 10000
       }}
     >
-      <defs>
-        <marker
-          id="arrowhead"
-          markerWidth="10"
-          markerHeight="7"
-          refX="0"
-          refY="3.5"
-          orient="auto"
-        >
-          <polygon points="0 0, 10 3.5, 0 7" fill="red" />
-        </marker>
-      </defs>
       {lines.map((line, idx) => {
-        // Determine the color and style based on the line type
-        let strokeColor, strokeWidth, dashArray;
+        // New aesthetic styling - thin blue lines with subtle styling
+        let strokeColor, strokeWidth, dashArray, opacity;
         
+        // Use a consistent color palette based on blue
         switch(line.type) {
           case "city":
-            strokeColor = "rgba(255, 0, 0, 0.7)";
-            strokeWidth = 2;
-            dashArray = "8,4";
+            strokeColor = "rgba(65, 105, 225, 0.7)"; // Royal blue with transparency
+            strokeWidth = 0.8;
+            dashArray = "3,3";
+            opacity = 0.7;
             break;
           case "time":
-            strokeColor = "red";
-            strokeWidth = 2;
-            dashArray = "6,3";
+            strokeColor = "rgba(30, 144, 255, 0.8)"; // Dodger blue with transparency
+            strokeWidth = 0.8;
+            dashArray = "none"; // Solid line for time connections
+            opacity = 0.7;
             break;
           case "city-to-time":
-            strokeColor = "purple";
-            strokeWidth = 2;
-            dashArray = "4,2";
-            break;
-          case "time-fallback":
-            strokeColor = "orange";
-            strokeWidth = 2;
-            dashArray = "5,5";
-            break;
-          case "city-to-time-fallback":
-            strokeColor = "blue";
-            strokeWidth = 2;
-            dashArray = "4,4";
-            break;
-          case "emergency-fallback":
-            strokeColor = "#ff00ff"; // Bright magenta
-            strokeWidth = 5;
-            dashArray = "10,5";
+            strokeColor = "rgba(70, 130, 180, 0.7)"; // Steel blue with transparency
+            strokeWidth = 0.8;
+            dashArray = "2,2";
+            opacity = 0.7;
             break;
           default:
-            strokeColor = "gray";
-            strokeWidth = 1;
+            strokeColor = "rgba(95, 158, 160, 0.5)"; // Cadet blue with transparency
+            strokeWidth = 0.8;
             dashArray = "2,2";
+            opacity = 0.5;
         }
         
+        // Calculate a gentle curve for the line
+        // This creates a simple curved path instead of a straight line
+        const dx = line.to.x - line.from.x;
+        const dy = line.to.y - line.from.y;
+        const controlX = line.from.x + dx * 0.5;
+        const controlY = line.from.y + dy * 0.5;
+        
+        // Path with gentle curve
+        const path = `M${line.from.x},${line.from.y} Q${controlX},${controlY} ${line.to.x},${line.to.y}`;
+        
         return (
-          <line
-            key={idx}
-            x1={line.from.x}
-            y1={line.from.y}
-            x2={line.to.x}
-            y2={line.to.y}
+          <path
+          key={idx}
+            d={path}
             stroke={strokeColor}
             strokeWidth={strokeWidth}
             strokeDasharray={dashArray}
-            className="connection-line"
-          >
-            <animate
-              attributeName="stroke-dashoffset"
-              from="24"
-              to="0"
-              dur="1s"
-              repeatCount="indefinite"
-            />
-          </line>
+            strokeOpacity={opacity}
+            fill="none"
+          />
         );
       })}
     </svg>

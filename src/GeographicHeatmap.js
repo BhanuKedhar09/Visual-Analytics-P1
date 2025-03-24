@@ -275,9 +275,9 @@ function GeographicHeatmap({
           setHighlightedCity,
           setTimeHighlightedState,
           setTimeHighlightedCity,
-          sankeyHighlightedState, // add this
-          setSankeyHighlightedState, // add this
-          sankeyHighlightedCity, // add this
+          sankeyHighlightedState,
+          setSankeyHighlightedState,
+          sankeyHighlightedCity,
           setSankeyHighlightedCity,
           setCityToDaysGlobal,
           cityToDaysGlobal,
@@ -287,9 +287,7 @@ function GeographicHeatmap({
           selectedCities,
           selectedSankeyNodes,
           cityToDays,
-          setCityToDays,
-          setCityToDaysGlobal,
-          cityToDaysGlobal,
+          setCityToDays
         });
         enableCopyAndDrag(circleSel, handleDrop);
         circlesRef.current = circleSel;

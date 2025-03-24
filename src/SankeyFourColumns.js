@@ -41,6 +41,8 @@ function SankeyFourColumns({
     sankeyHighlightedCity,
     setSankeyHighlightedCity,
     cityToDaysGlobal,
+    dayToStates,
+    dayToCities
   } = useContext(InteractionContext);
 
   const containerRef = useRef(null);
@@ -361,107 +363,107 @@ function SankeyFourColumns({
         .on("mouseover", (evt, d) => {
           if (!sankeyLayoutRef.current) return;
           
-          console.log("DEBUG: Sankey node hovered", d.layer, d.name);
-          
           // Initialize empty arrays to collect connected elements
           let connectedCities = [];
-          let connectedDays = new Set();
+          let connectedDays = new Set(); // Re-add this to store matching dates
           
           if (d.layer === 0) {
             // For a state node, gather connected city names from sankey links.
-            console.log("Finding cities connected to state:", d.name);
             const links = sankeyLayoutRef.current.links;
+            console.log("SANKEY LINKS:", links);
             links.forEach((link) => {
               if (link.source.index === d.index && link.target.layer === 1) {
                 connectedCities.push(link.target.name);
-                console.log(`Connected city from links: ${link.target.name}`);
               }
               if (link.target.index === d.index && link.source.layer === 1) {
                 connectedCities.push(link.source.name);
-                console.log(`Connected city from links: ${link.source.name}`);
               }
             });
             connectedCities = Array.from(new Set(connectedCities));
-            console.log(`Found ${connectedCities.length} unique connected cities`);
             
-            // Get days that correspond to the connected cities
-            console.log(`Collecting days for ${connectedCities.length} cities`);
-            connectedCities.forEach((cityName) => {
-              const cityDays = cityToDaysGlobal[cityName];
-              if (!cityDays) {
-                console.log(`No days found for city: ${cityName}`);
-                return;
-              }
+            // Find days related to this state using dayToStates
+            if (dayToStates && Object.keys(dayToStates).length > 0) {
+              console.log(`Finding days for state: ${d.name}`);
+              console.log(`DEBUG - dayToStates structure:`, dayToStates);
+              console.log(`DEBUG - dayToStates keys count:`, Object.keys(dayToStates).length);
+              console.log(`DEBUG - Sample dayToStates entries:`, 
+                Object.entries(dayToStates).slice(0, 3).map(([dayNum, stateSet]) => ({
+                  dayNum,
+                  date: new Date(+dayNum),
+                  statesCount: stateSet.size,
+                  sampleStates: Array.from(stateSet).slice(0, 5)
+                }))
+              );
               
-              console.log(`cityToDaysGlobal for ${cityName}:`, 
-                cityDays instanceof Set ? 
-                `Set with ${cityDays.size} items` : 
-                `${typeof cityDays} with ${Object.keys(cityDays).length} items`);
-              
-              // Handle both Set objects and arrays
-              const daySet = cityDays instanceof Set ? cityDays : new Set(cityDays);
-              
-              daySet.forEach((dayNum) => {
-                // Ensure dayNum is treated as a number
-                const numericDayNum = +dayNum;
-                if (isNaN(numericDayNum)) {
-                  console.error(`Invalid dayNum: ${dayNum}`);
-                  return;
+              let matchingDaysCount = 0;
+              // Iterate through all day numbers in dayToStates
+              Object.entries(dayToStates).forEach(([dayNum, states]) => {
+                // Check if this day has transactions from our state
+                if (states && states.has(d.name)) {
+                  matchingDaysCount++;
+                  // Convert the day number to a formatted date string
+                  const date = new Date(+dayNum);
+                  const dateStr = d3.timeFormat("%Y-%m-%d")(date);
+                  connectedDays.add(dateStr);
+                  
+                  // Debug format - log a sample of formatted dates
+                  if (connectedDays.size <= 5) {
+                    console.log(`SANKEY DATE FORMAT: dayNum=${dayNum}, date=${date}, formatted=${dateStr}`);
+                    
+                    // Also log what the corresponding time bar ID would be
+                    const expectedTimeBarId = `time-bar-${dateStr}`;
+                    console.log(`EXPECTED TIME BAR ID: ${expectedTimeBarId}`);
+                  }
                 }
-                
-                const date = new Date(numericDayNum);
-                // Format MUST match exactly what's used in TimeHistogram
-                const dayStr = d3.timeFormat("%Y-%m-%d")(date);
-                connectedDays.add(dayStr);
               });
-            });
-            console.log(`Found ${connectedDays.size} unique days connected to state ${d.name}`);
-          } else if (d.layer === 1) {
-            // If it's a city node
-            connectedCities = [d.name]; // draw line from sankey-node -> geo-circle
-            console.log(`City node ${d.name} -> geocircle connection`);
-            
-            const cityDays = cityToDaysGlobal[d.name];
-            if (cityDays) {
-              console.log(`cityToDaysGlobal for ${d.name}:`, 
-                cityDays instanceof Set ? 
-                `Set with ${cityDays.size} items` : 
-                `${typeof cityDays} with ${Object.keys(cityDays).length} items`);
-                
-              // Handle both Set objects and arrays
-              const daySet = cityDays instanceof Set ? cityDays : new Set(cityDays);
-              console.log(`Day set has ${daySet.size} items`);
               
-              daySet.forEach((dayNum) => {
-                // Ensure dayNum is treated as a number
-                const numericDayNum = +dayNum;
-                if (isNaN(numericDayNum)) {
-                  console.error(`Invalid dayNum: ${dayNum}`);
-                  return;
-                }
-                
-                const date = new Date(numericDayNum);
-                // Format MUST match exactly what's used in TimeHistogram
-                const dayStr = d3.timeFormat("%Y-%m-%d")(date);
-                connectedDays.add(dayStr);
-                console.log(`Adding connected day: ${dayStr} for city ${d.name}`);
-              });
+              console.log(`Found ${connectedDays.size}/${matchingDaysCount} days for state ${d.name}`);
             } else {
-              console.error(`No days found for city: ${d.name} in cityToDaysGlobal`);
-              console.log("cityToDaysGlobal keys:", Object.keys(cityToDaysGlobal || {}).slice(0, 10));
+              console.log("ERROR: dayToStates is empty or undefined!", dayToStates);
+            }
+            
+          } else if (d.layer === 1) {
+            // For city nodes, just use the name directly
+            connectedCities = [d.name];
+            
+            // Find days related to this city using dayToCities
+            if (dayToCities && Object.keys(dayToCities).length > 0) {
+              console.log(`Finding days for city: ${d.name}`);
+              
+              // Iterate through all day numbers in dayToCities
+              Object.entries(dayToCities).forEach(([dayNum, cities]) => {
+                // Check if this day has transactions from our city
+                if (cities && cities.has(d.name)) {
+                  // Convert the day number to a formatted date string
+                  const date = new Date(+dayNum);
+                  const dateStr = d3.timeFormat("%Y-%m-%d")(date);
+                  connectedDays.add(dateStr);
+                }
+              });
+              
+              console.log(`Found ${connectedDays.size} days for city ${d.name}`);
             }
           }
           
-          const days = Array.from(connectedDays);
-          console.log(`Setting hoveredSankey with ${connectedCities.length} cities and ${days.length} days`);
+          // Convert set to array for the hoveredSankey object
+          const daysArray = Array.from(connectedDays);
           
-          setHoveredSankey({
+          console.log(`SANKEY NODE HOVER: ${d.layer === 0 ? 'State' : 'City'} "${d.name}" has ${connectedCities.length} connected cities and ${daysArray.length} connected days`);
+          if (daysArray.length > 0) {
+            console.log(`Sample days: ${daysArray.slice(0, 5).join(', ')}${daysArray.length > 5 ? '...' : ''}`);
+          }
+          
+          // Set the hoveredSankey with node info, connected cities and connected days
+          const hoveredSankeyObj = {
             layer: d.layer,
             name: d.name,
             index: d.index,
-            connectedDays: days,
             connectedCities,
-          });
+            connectedDays: daysArray
+          };
+          console.log("HOVERED SANKEY OBJECT:", hoveredSankeyObj);
+          
+          setHoveredSankey(hoveredSankeyObj);
           
           // Now highlight sankey links...
           linkGroup
