@@ -1,5 +1,12 @@
 import React, { createContext, useState, useEffect } from "react";
 
+// Constants for link display modes
+export const LinkDisplayMode = {
+  HIGHLIGHT_ONLY: "highlight",
+  DIRECT_LINKS: "links",
+  LOOP_LINKS: "loop"
+};
+
 export const InteractionContext = createContext();
 
 export function InteractionProvider({ children }) {
@@ -28,6 +35,9 @@ export function InteractionProvider({ children }) {
   const [dayToCities, setDayToCities] = useState({});
   const [dayToOccupations, setDayToOccupations] = useState({});
   const [dayToMerchants, setDayToMerchants] = useState({});
+
+  // Link display mode state
+  const [linkDisplayMode, setLinkDisplayMode] = useState(LinkDisplayMode.HIGHLIGHT_ONLY);
 
   function resetSelections() {
     setHoveredDay(null);
@@ -89,6 +99,9 @@ export function InteractionProvider({ children }) {
         setDayToOccupations,
         dayToMerchants,
         setDayToMerchants,
+        // Link display mode
+        linkDisplayMode,
+        setLinkDisplayMode,
       }}
     >
       {children}

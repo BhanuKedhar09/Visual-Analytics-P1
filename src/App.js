@@ -9,6 +9,7 @@ import ResetSelectionsButton from "./ResetSelectionsButton";
 import SleekWidget from "./SleekWidget";
 import CircleBipartite from "./CircleBipartite";
 import LineOverlay from "./LineOverlay";
+import LinkModeToggle from "./LinkModeToggle";
 
 function App() {
   return (
@@ -24,10 +25,18 @@ function App() {
           }}
         >
           <h1>My Visual Analytics App</h1>
-          {/* Place the Reset Button somewhere visible */}
+          {/* Controls area for buttons and toggles */}
           <div
-            style={{ position: "absolute", top: 7, right: 25, zIndex: 1000 }}
+            style={{ 
+              position: "absolute", 
+              top: 7, 
+              right: 25, 
+              zIndex: 1000, 
+              display: "flex",
+              alignItems: "center"
+            }}
           >
+            <LinkModeToggle />
             <ResetSelectionsButton />
           </div>
           <SleekWidget
@@ -35,7 +44,7 @@ function App() {
             initialWidth={1210}
             initialHeight={300}
             initialX={0}
-            initialY={0}
+            initialY={610}
           >
             <TimeHistogram
               id="time-graph"
@@ -49,7 +58,7 @@ function App() {
             initialWidth={600}
             initialHeight={500}
             initialX={610}
-            initialY={320}
+            initialY={0}
           >
             <GeographicHeatmap
               id="geo-map"
@@ -63,7 +72,7 @@ function App() {
             initialWidth={600}
             initialHeight={600}
             initialX={0}
-            initialY={320}            
+            initialY={0}            
           >
             <CircleBipartite
               width={600}

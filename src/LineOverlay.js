@@ -1,42 +1,97 @@
 import React, { useRef, useEffect, useState, useContext } from "react";
 import * as d3 from "d3";
-import { InteractionContext } from "./InteractionContext";
+import { InteractionContext, LinkDisplayMode } from "./InteractionContext";
 
 const LineOverlay = () => {
   const { 
     hoveredSankey,
+    hoveredCity,
     dayToStates,
-    dayToCities
+    dayToCities,
+    cityToDaysGlobal,
+    linkDisplayMode
   } = useContext(InteractionContext);
   
   const [lines, setLines] = useState([]);
   const svgRef = useRef(null);
 
-  // This effect runs whenever the Sankey hover state changes
+  // This effect runs whenever the hover state or link mode changes
   useEffect(() => {
-    // Clear lines if nothing is hovered
+    // Clear lines if in HIGHLIGHT_ONLY mode
+    if (linkDisplayMode === LinkDisplayMode.HIGHLIGHT_ONLY) {
+      setLines([]);
+      return;
+    }
+    
+    // Initialize empty lines array
+    let newLines = [];
+    
+    // CASE 1: Handle city hover from the map (create direct connections from city to time bars)
+    if (hoveredCity && !hoveredSankey && linkDisplayMode !== LinkDisplayMode.HIGHLIGHT_ONLY) {
+      console.log(`LINES: Creating connections for hovered city on map: ${hoveredCity}`);
+      
+      // Find the geo circle element for this city
+      const sourceEl = document.getElementById(`geo-circle-${hoveredCity}`);
+      if (sourceEl) {
+        const sourceRect = sourceEl.getBoundingClientRect();
+        const sourceCenter = {
+          x: sourceRect.left + sourceRect.width / 2,
+          y: sourceRect.top + sourceRect.height / 2
+        };
+        
+        // Get the days associated with this city from cityToDaysGlobal
+        const cityDays = cityToDaysGlobal[hoveredCity];
+        if (cityDays && cityDays.size > 0) {
+          console.log(`Found ${cityDays.size} days for city ${hoveredCity} in cityToDaysGlobal`);
+          
+          // Convert day numbers to date strings and connect to time bars
+          // Limit to max 10 connections for performance
+          let connectedBars = 0;
+          const maxConnections = 10;
+          
+          // Convert Set to Array for easier manipulation
+          Array.from(cityDays).slice(0, maxConnections).forEach(dayNum => {
+            // Convert dayNum to date string format used by time bars
+            const date = new Date(+dayNum);
+            const dateStr = d3.timeFormat("%Y-%m-%d")(date);
+            const timeBarId = `time-bar-${dateStr}`;
+            
+            const barEl = document.getElementById(timeBarId);
+            if (barEl) {
+              connectedBars++;
+              
+              const barRect = barEl.getBoundingClientRect();
+              const barCenter = {
+                x: barRect.left + barRect.width / 2, 
+                y: barRect.top + barRect.height / 2
+              };
+              
+              // Add City -> Time bar line
+              newLines.push({
+                from: sourceCenter,
+                to: barCenter,
+                type: "city-to-time"  // Use specific type for styling
+              });
+            }
+          });
+          
+          console.log(`LINES: Connected city ${hoveredCity} to ${connectedBars} time bars`);
+          setLines(newLines);
+          return;
+        } else {
+          console.log(`No days found for city ${hoveredCity} in cityToDaysGlobal`);
+        }
+      } else {
+        console.error(`ERROR: Can't find geo circle element with ID 'geo-circle-${hoveredCity}'`);
+      }
+    }
+    
+    // CASE 2: Handle Sankey hover
     if (!hoveredSankey) {
       setLines([]);
       return;
     }
 
-    // Detailed diagnostics of hoveredSankey
-    console.log("LINE OVERLAY - DETAILED HOVERED SANKEY DIAGNOSTICS:");
-    console.log("=======================================================");
-    console.log("FULL hoveredSankey object:", hoveredSankey);
-    console.log("hoveredSankey.layer:", hoveredSankey.layer);
-    console.log("hoveredSankey.name:", hoveredSankey.name);
-    console.log("hoveredSankey.index:", hoveredSankey.index);
-    console.log("hoveredSankey.connectedCities:", hoveredSankey.connectedCities);
-    console.log("hoveredSankey.connectedDays:", hoveredSankey.connectedDays);
-    console.log("connectedDays length:", hoveredSankey.connectedDays ? hoveredSankey.connectedDays.length : 0);
-    console.log("connectedDays type:", hoveredSankey.connectedDays ? typeof hoveredSankey.connectedDays : "undefined");
-    console.log("Is connectedDays array?", hoveredSankey.connectedDays ? Array.isArray(hoveredSankey.connectedDays) : "N/A");
-    
-    // NEW CODE: Calculate days to highlight based on dayToStates/dayToCities
-    console.log("CALCULATING DAYS TO HIGHLIGHT USING TIME HISTOGRAM APPROACH:");
-    console.log("=======================================================");
-    
     // Collect days that should be highlighted based on the Sankey node
     const daysToHighlight = new Set();
     
@@ -110,8 +165,6 @@ const LineOverlay = () => {
       x: sourceRect.left + sourceRect.width / 2,
       y: sourceRect.top + sourceRect.height / 2
     };
-
-    let newLines = [];
 
     // 1. Connect to cities if available
     if (hoveredSankey.connectedCities && hoveredSankey.connectedCities.length > 0) {
@@ -271,6 +324,60 @@ const LineOverlay = () => {
       }
     }
     
+    // 3. Create direct city-to-time-bar connections when a Sankey node is hovered
+    // This creates a complete loop of connections: Sankey->Cities->TimeBars->Sankey
+    
+    // We'll only do this if we have both connected cities and connected days AND we're in LOOP_LINKS mode
+    if (linkDisplayMode === LinkDisplayMode.LOOP_LINKS &&
+        hoveredSankey.connectedCities && hoveredSankey.connectedCities.length > 0 &&
+        daysToHighlight.size > 0) {
+      
+      console.log("LINES: Creating city-to-time connections to complete the loop");
+      
+      // Limit to prevent too many connections for performance
+      const maxCitiesToConnect = 3;
+      const maxTimeBarsToConnect = 5;
+      
+      // Get a subset of cities to connect from
+      const citiesToConnect = hoveredSankey.connectedCities.slice(0, maxCitiesToConnect);
+      
+      // Get a subset of time bars to connect to
+      const daysToConnect = Array.from(daysToHighlight).slice(0, maxTimeBarsToConnect);
+      
+      // For each city and time bar combination, create a connection
+      citiesToConnect.forEach(city => {
+        const cityEl = document.getElementById(`geo-circle-${city}`);
+        if (!cityEl) return;
+        
+        const cityRect = cityEl.getBoundingClientRect();
+        const cityCenter = {
+          x: cityRect.left + cityRect.width / 2,
+          y: cityRect.top + cityRect.height / 2
+        };
+        
+        // Connect to each time bar
+        daysToConnect.forEach(dayStr => {
+          const timeBarId = `time-bar-${dayStr}`;
+          const barEl = document.getElementById(timeBarId);
+          
+          if (barEl) {
+            const barRect = barEl.getBoundingClientRect();
+            const barCenter = {
+              x: barRect.left + barRect.width / 2,
+              y: barRect.top + barRect.height / 2
+            };
+            
+            // Add City -> Time bar line
+            newLines.push({
+              from: cityCenter,
+              to: barCenter,
+              type: "city-to-time"
+            });
+          }
+        });
+      });
+    }
+    
     console.log(`LINES: Creating ${newLines.length} connection lines in total`);
     
     // Additional filter to remove any connections to the top-left corner
@@ -305,7 +412,7 @@ const LineOverlay = () => {
     }
     
     setLines(filteredLines);
-  }, [hoveredSankey, dayToStates, dayToCities]);
+  }, [hoveredSankey, hoveredCity, dayToStates, dayToCities, cityToDaysGlobal, linkDisplayMode]);
 
   // This will handle the SVG update whenever the window changes size
   useEffect(() => {
@@ -367,15 +474,95 @@ const LineOverlay = () => {
             opacity = 0.5;
         }
         
-        // Calculate a gentle curve for the line
-        // This creates a simple curved path instead of a straight line
+        // Calculate a more pronounced curve for better visibility
         const dx = line.to.x - line.from.x;
         const dy = line.to.y - line.from.y;
-        const controlX = line.from.x + dx * 0.5;
-        const controlY = line.from.y + dy * 0.5;
         
-        // Path with gentle curve
-        const path = `M${line.from.x},${line.from.y} Q${controlX},${controlY} ${line.to.x},${line.to.y}`;
+        // Determine the direction and create appropriate curves
+        let controlPoint1X, controlPoint1Y, controlPoint2X, controlPoint2Y;
+        
+        // For more dramatic curves, we'll use cubic Bézier (C) instead of quadratic (Q)
+        // This gives us two control points for more flexibility
+        const distance = Math.sqrt(dx*dx + dy*dy);
+        const midX = (line.from.x + line.to.x) / 2;
+        const midY = (line.from.y + line.to.y) / 2;
+        
+        // Create a perpendicular offset for the control points
+        // The offset is proportional to the distance for consistency
+        const offsetX = -dy * 0.2; // Perpendicular to the line
+        const offsetY = dx * 0.2;  // Perpendicular to the line
+        
+        controlPoint1X = midX + offsetX;
+        controlPoint1Y = midY + offsetY;
+        controlPoint2X = midX + offsetX;
+        controlPoint2Y = midY + offsetY;
+        
+        // Create different curve styles based on type and relative positions
+        let path;
+        
+        // Calculate curve direction based on relative positions
+        // This makes the curves bend naturally based on source/target positions
+        const isSourceAboveTarget = line.from.y < line.to.y;
+        const isSourceLeftOfTarget = line.from.x < line.to.x;
+        
+        // Set the curve sign based on relative positions (affects curve direction)
+        const curveSign = isSourceAboveTarget ? -1 : 1;
+        
+        if (line.type === "city") {
+          // City connections: more horizontal flow with gentle curve
+          const curveFactor = Math.min(Math.abs(dx) * 0.4, 150); // Limit the curve height
+          
+          // Control points for city connections
+          const ctrl1X = line.from.x + dx * 0.3;
+          const ctrl1Y = line.from.y + (curveSign * curveFactor * 0.5);
+          const ctrl2X = line.to.x - dx * 0.3;
+          const ctrl2Y = line.to.y + (curveSign * curveFactor * 0.5);
+          
+          path = `M${line.from.x},${line.from.y} C${ctrl1X},${ctrl1Y} ${ctrl2X},${ctrl2Y} ${line.to.x},${line.to.y}`;
+        } else if (line.type === "time") {
+          // Time connections: more vertical flow with adaptive curve
+          const curveFactor = Math.min(Math.abs(dy) * 0.5, 200); // Limit the curve width
+          
+          // Control points for time connections - curve bends perpendicular to main direction
+          const ctrl1X = line.from.x + (isSourceLeftOfTarget ? curveFactor : -curveFactor);
+          const ctrl1Y = line.from.y + dy * 0.3;
+          const ctrl2X = line.to.x + (isSourceLeftOfTarget ? -curveFactor : curveFactor);
+          const ctrl2Y = line.to.y - dy * 0.3;
+          
+          path = `M${line.from.x},${line.from.y} C${ctrl1X},${ctrl1Y} ${ctrl2X},${ctrl2Y} ${line.to.x},${line.to.y}`;
+        } else if (line.type === "city-to-time") {
+          // City-to-time connections: dynamic curve
+          const hdist = Math.abs(dx);
+          const vdist = Math.abs(dy);
+          
+          // Determine whether the connection is more horizontal or vertical
+          if (hdist > vdist) {
+            // More horizontal - curve vertically
+            const ctrl1X = line.from.x + dx * 0.3;
+            const ctrl1Y = line.from.y + (curveSign * Math.min(vdist * 0.8, 150));
+            const ctrl2X = line.to.x - dx * 0.3;
+            const ctrl2Y = line.to.y + (curveSign * Math.min(vdist * 0.8, 150));
+            
+            path = `M${line.from.x},${line.from.y} C${ctrl1X},${ctrl1Y} ${ctrl2X},${ctrl2Y} ${line.to.x},${line.to.y}`;
+          } else {
+            // More vertical - curve horizontally
+            const hcurveSign = isSourceLeftOfTarget ? 1 : -1;
+            const ctrl1X = line.from.x + (hcurveSign * Math.min(hdist * 0.8, 150));
+            const ctrl1Y = line.from.y + dy * 0.3;
+            const ctrl2X = line.to.x + (hcurveSign * Math.min(hdist * 0.8, 150));
+            const ctrl2Y = line.to.y - dy * 0.3;
+            
+            path = `M${line.from.x},${line.from.y} C${ctrl1X},${ctrl1Y} ${ctrl2X},${ctrl2Y} ${line.to.x},${line.to.y}`;
+          }
+        } else {
+          // Default fallback - simple curve
+          const ctrl1X = line.from.x + dx * 0.5;
+          const ctrl1Y = line.from.y;
+          const ctrl2X = line.to.x - dx * 0.5;
+          const ctrl2Y = line.to.y;
+          
+          path = `M${line.from.x},${line.from.y} C${ctrl1X},${ctrl1Y} ${ctrl2X},${ctrl2Y} ${line.to.x},${line.to.y}`;
+        }
         
         return (
           <path
