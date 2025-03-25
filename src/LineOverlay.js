@@ -272,7 +272,39 @@ const LineOverlay = () => {
     }
     
     console.log(`LINES: Creating ${newLines.length} connection lines in total`);
-    setLines(newLines);
+    
+    // Additional filter to remove any connections to the top-left corner
+    // This specifically targets the unwanted line visible in the UI
+    const timeGraphEl = document.getElementById("time-graph");
+    let filteredLines = newLines;
+    
+    if (timeGraphEl) {
+      const graphRect = timeGraphEl.getBoundingClientRect();
+      
+      // Filter out any lines connecting to the top-left region of the time graph
+      filteredLines = newLines.filter(line => {
+        // Skip non-time connections
+        if (line.type !== "time") return true;
+        
+        // Check if this is connecting near the top-left corner
+        const isTopLeftCorner = 
+          line.to.x < (graphRect.left + 100) && // Within 100px of left edge
+          line.to.y < (graphRect.top + 100);    // Within 100px of top edge
+        
+        if (isTopLeftCorner) {
+          console.log("Filtered out unwanted connection to top-left corner");
+          return false;
+        }
+        
+        return true;
+      });
+      
+      if (filteredLines.length < newLines.length) {
+        console.log(`Removed ${newLines.length - filteredLines.length} unwanted top-left corner connections`);
+      }
+    }
+    
+    setLines(filteredLines);
   }, [hoveredSankey, dayToStates, dayToCities]);
 
   // This will handle the SVG update whenever the window changes size
