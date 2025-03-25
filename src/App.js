@@ -32,7 +32,7 @@ function App() {
           </div>
           <SleekWidget
             title="Stacked Chart"
-            initialWidth={1110}
+            initialWidth={1210}
             initialHeight={300}
             initialX={0}
             initialY={0}
@@ -46,9 +46,9 @@ function App() {
           </SleekWidget>
           <SleekWidget
             title="Geographic Heatmap"
-            initialWidth={500}
-            initialHeight={400}
-            initialX={0}
+            initialWidth={600}
+            initialHeight={500}
+            initialX={610}
             initialY={320}
           >
             <GeographicHeatmap
@@ -62,8 +62,8 @@ function App() {
             title="Radial Network"
             initialWidth={600}
             initialHeight={600}
-            initialX={510}
-            initialY={320}
+            initialX={0}
+            initialY={320}            
           >
             <CircleBipartite
               width={600}
@@ -75,9 +75,9 @@ function App() {
           </SleekWidget>
           <SleekWidget
             title="State → City → Occupation → Merchant"
-            initialWidth={440}
-            initialHeight={950}
-            initialX={1120}
+            initialWidth={600}  //440
+            initialHeight={1200} //950
+            initialX={1220}
             initialY={1}
           >
             <SankeyFourColumns
