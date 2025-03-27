@@ -396,11 +396,6 @@ function TimeHistogram({
         el.attr("data-day", dateStr);
         el.attr("data-timestamp", +hist[d.index].date);
         
-        // DEBUG: Log sample bar IDs for the first few bars
-        if (d.index < 5) {
-          console.log(`TIME BAR CREATION: id=${id}, data-date=${dateStr}`);
-        }
-        
         return id;
       })
       .attr(

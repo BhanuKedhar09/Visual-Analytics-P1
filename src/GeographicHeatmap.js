@@ -252,10 +252,42 @@ function GeographicHeatmap({
             return 1;
           })
           .on("mouseover", (evt, d) => {
+            console.log("Circle mouseover:", d.city); // Debug log
+            
+            // Set hover state
             setHoveredCity(d.city);
+            
+            // Show tooltip
+            d3.select("body")
+              .select(".tooltip")
+              .html(
+                `
+                <strong>${d.city}</strong><br/>
+                State: ${d.state}<br/>
+                Transactions: ${d.count}
+                `
+              )
+              .style("opacity", 1)
+              .style("left", (evt.pageX + 10) + "px")
+              .style("top", (evt.pageY + 10) + "px");
+          })
+          .on("mousemove", (evt) => {
+            // Update tooltip position
+            d3.select("body")
+              .select(".tooltip")
+              .style("left", (evt.pageX + 10) + "px")
+              .style("top", (evt.pageY + 10) + "px");
           })
           .on("mouseout", () => {
+            console.log("Circle mouseout"); // Debug log
+            
+            // Clear hover state
             setHoveredCity(null);
+            
+            // Hide tooltip
+            d3.select("body")
+              .select(".tooltip")
+              .style("opacity", 0);
           })
           // click => toggle city selection
           .on("click", (evt, d) => {
@@ -267,9 +299,11 @@ function GeographicHeatmap({
               return newSet;
             });
           });
+
         circleSel.each(function (d) {
           d.type = "geoCircle";
         });
+
         const handleDrop = createDropHandler({
           setHighlightedState,
           setHighlightedCity,
@@ -291,37 +325,23 @@ function GeographicHeatmap({
         });
         enableCopyAndDrag(circleSel, handleDrop);
         circlesRef.current = circleSel;
+
         // Ensure tooltip exists
         const tooltip = d3.select("body").select(".tooltip");
         if (tooltip.empty()) {
-          d3.select("body").append("div").attr("class", "tooltip");
+          d3.select("body")
+            .append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0)
+            .style("position", "absolute")
+            .style("pointer-events", "none")
+            .style("background", "white")
+            .style("padding", "8px")
+            .style("border", "1px solid #ccc")
+            .style("border-radius", "4px")
+            .style("font-size", "12px")
+            .style("box-shadow", "2px 2px 6px rgba(0,0,0,0.1)");
         }
-
-        circleSel
-          .on("mouseover", (evt, d) => {
-            d3.select("body")
-              .select(".tooltip")
-              .html(
-                `
-        <strong>${d.city}</strong><br/>
-        State: ${d.state}<br/>
-        Transactions: ${d.count}
-      `
-              )
-              .style("opacity", 1);
-          })
-          .on("mousemove", (evt) => {
-            d3.select("body")
-              .select(".tooltip")
-              .style("left", evt.pageX + 10 + "px")
-              .style("top", evt.pageY + 10 + "px");
-          })
-          .on("mouseout", () => {
-            d3.select("body").select(".tooltip").style("opacity", 0);
-          });
-        circleSel.each(function (d) {
-          d.type = "geoCircle";
-        });
       })
       .catch((err) => console.error("Error loading map data:", err));
 

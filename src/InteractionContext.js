@@ -2,9 +2,8 @@ import React, { createContext, useState, useEffect } from "react";
 
 // Constants for link display modes
 export const LinkDisplayMode = {
-  HIGHLIGHT_ONLY: "highlight",
-  DIRECT_LINKS: "links",
-  LOOP_LINKS: "loop"
+  HIGHLIGHT_ONLY: "HIGHLIGHT_ONLY",
+  SHOW_LINKS: "SHOW_LINKS"
 };
 
 export const InteractionContext = createContext();
