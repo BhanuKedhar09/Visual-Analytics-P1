@@ -428,8 +428,6 @@ function SankeyFourColumns({
             
             // Find days related to this city using dayToCities
             if (dayToCities && Object.keys(dayToCities).length > 0) {
-              console.log(`Finding days for city: ${d.name}`);
-              
               // Iterate through all day numbers in dayToCities
               Object.entries(dayToCities).forEach(([dayNum, cities]) => {
                 // Check if this day has transactions from our city
@@ -440,30 +438,22 @@ function SankeyFourColumns({
                   connectedDays.add(dateStr);
                 }
               });
-              
-              console.log(`Found ${connectedDays.size} days for city ${d.name}`);
             }
+            
+            // Convert set to array for the hoveredSankey object
+            const daysArray = Array.from(connectedDays);
+            
+            // Set the hoveredSankey with node info, connected cities and connected days
+            const hoveredSankeyObj = {
+              layer: d.layer,
+              name: d.name,
+              index: d.index,
+              connectedCities,
+              connectedDays: daysArray
+            };
+            
+            setHoveredSankey(hoveredSankeyObj);
           }
-          
-          // Convert set to array for the hoveredSankey object
-          const daysArray = Array.from(connectedDays);
-          
-          console.log(`SANKEY NODE HOVER: ${d.layer === 0 ? 'State' : 'City'} "${d.name}" has ${connectedCities.length} connected cities and ${daysArray.length} connected days`);
-          if (daysArray.length > 0) {
-            console.log(`Sample days: ${daysArray.slice(0, 5).join(', ')}${daysArray.length > 5 ? '...' : ''}`);
-          }
-          
-          // Set the hoveredSankey with node info, connected cities and connected days
-          const hoveredSankeyObj = {
-            layer: d.layer,
-            name: d.name,
-            index: d.index,
-            connectedCities,
-            connectedDays: daysArray
-          };
-          console.log("HOVERED SANKEY OBJECT:", hoveredSankeyObj);
-          
-          setHoveredSankey(hoveredSankeyObj);
           
           // Now highlight sankey links...
           linkGroup

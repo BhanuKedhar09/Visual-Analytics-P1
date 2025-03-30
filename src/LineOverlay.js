@@ -132,6 +132,14 @@ const LineOverlay = () => {
       setSankeyHighlightedCity(null);
       
       const dayStr = d3.timeFormat("%Y-%m-%d")(hoveredDay);
+      const dayNum = +d3.timeDay(hoveredDay);
+      
+      console.log("=== LineOverlay Time Bar Debug ===");
+      console.log("Hovered Day:", dayStr);
+      console.log("Day Number:", dayNum);
+      console.log("Cities for this day:", dayToCities[dayNum] ? Array.from(dayToCities[dayNum]) : []);
+      console.log("States for this day:", dayToStates[dayNum] ? Array.from(dayToStates[dayNum]) : []);
+      
       const sourceEl = document.getElementById(`time-bar-${dayStr}`);
       
       if (sourceEl) {
@@ -142,14 +150,15 @@ const LineOverlay = () => {
         };
         
         // Get the cities associated with this day from dayToCities
-        const dayNum = +d3.timeDay(hoveredDay);
         const cities = dayToCities[dayNum];
         
         if (cities) {
+          console.log("Found cities:", Array.from(cities));
           // 1. Connect to cities on the map
           cities.forEach(city => {
             const cityEl = document.getElementById(`geo-circle-${city}`);
             if (cityEl) {
+              console.log("Creating connection to city:", city);
               const cityRect = cityEl.getBoundingClientRect();
               const cityCenter = {
                 x: cityRect.left + cityRect.width / 2,
@@ -161,25 +170,25 @@ const LineOverlay = () => {
                 to: cityCenter,
                 type: "time-to-city"
               });
-              
-              // 2. Connect to Sankey nodes for these cities
-              const cityNodeId = `sankey-node-${city}`;
-              const cityNodeEl = document.getElementById(cityNodeId);
-              if (cityNodeEl) {
-                const nodeRect = cityNodeEl.getBoundingClientRect();
-                const nodeCenter = {
-                  x: nodeRect.left + nodeRect.width / 2,
-                  y: nodeRect.top + nodeRect.height / 2
-                };
-                
-                newLines.push({
-                  from: sourceCenter,
-                  to: nodeCenter,
-                  type: "time-to-sankey"
-                });
-              }
             }
           });
+          
+          // 2. Connect to Sankey nodes for these cities
+          const cityNodeId = `sankey-node-${cities[0]}`;
+          const cityNodeEl = document.getElementById(cityNodeId);
+          if (cityNodeEl) {
+            const nodeRect = cityNodeEl.getBoundingClientRect();
+            const nodeCenter = {
+              x: nodeRect.left + nodeRect.width / 2,
+              y: nodeRect.top + nodeRect.height / 2
+            };
+            
+            newLines.push({
+              from: sourceCenter,
+              to: nodeCenter,
+              type: "time-to-sankey"
+            });
+          }
           
           // 3. Get unique states for this day
           const states = new Set();
@@ -524,7 +533,7 @@ const LineOverlay = () => {
           
           return (
             <path
-              key={idx}
+          key={idx}
               d={path}
               stroke={strokeColor}
               strokeWidth={strokeWidth}
@@ -534,7 +543,7 @@ const LineOverlay = () => {
             />
           );
         })}
-      </svg>
+    </svg>
     </div>
   );
 };

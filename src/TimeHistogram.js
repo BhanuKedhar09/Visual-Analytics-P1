@@ -43,6 +43,8 @@ function TimeHistogram({
     setSankeyHighlightedState,
     sankeyHighlightedCity,
     setSankeyHighlightedCity,
+    dayToCities,
+    dayToStates,
     // Setters for context day maps
     setDayToStates,
     setDayToCities,
@@ -109,6 +111,14 @@ function TimeHistogram({
     processed.forEach((d) => {
       const dayNum = +d3.timeDay(d.TransactionDate);
       
+      // Debug the date conversion
+      console.log("Processing transaction:", {
+        original: d.TransactionDate,
+        dayNum: dayNum,
+        state: d.state_id?.trim(),
+        city: d.Location?.trim()
+      });
+      
       // Important: These mappings must be created with proper types
       // Each day maps to a Set of values for proper lookup
       
@@ -131,6 +141,19 @@ function TimeHistogram({
       if (d.MerchantID) {
         dtm[dayNum].add(d.MerchantID.trim());
       }
+    });
+    
+    // Debug the mappings
+    console.log("Day to Cities mapping:", {
+      totalDays: Object.keys(dtc).length,
+      sampleDay: Object.entries(dtc)[0],
+      allDays: Object.keys(dtc).slice(0, 5)
+    });
+    
+    console.log("Day to States mapping:", {
+      totalDays: Object.keys(dts).length,
+      sampleDay: Object.entries(dts)[0],
+      allDays: Object.keys(dts).slice(0, 5)
     });
     
     // Now let's reverse it to get cityToDays
@@ -411,10 +434,55 @@ function TimeHistogram({
       // ephemeral day hover => set hoveredDay
       .on("mouseover", (evt, d) => {
         const day = hist[d.index].date;
+        const dayNum = +d3.timeDay(day);
+        console.log("=== Time Bar Hover Debug ===");
+        console.log("Hovered Date:", d3.timeFormat("%Y-%m-%d")(day));
+        console.log("Day Number:", dayNum);
+        console.log("Transaction Counts:", {
+          Credit: hist[d.index].Credit,
+          Debit: hist[d.index].Debit
+        });
+        
+        // Log cities for this day
+        console.log("Cities for this day:", {
+          fromLocalState: localDayToCities[dayNum] ? Array.from(localDayToCities[dayNum]) : [],
+          fromContext: dayToCities[dayNum] ? Array.from(dayToCities[dayNum]) : []
+        });
+        
+        // Log states for this day
+        console.log("States for this day:", {
+          fromLocalState: localDayToStates[dayNum] ? Array.from(localDayToStates[dayNum]) : [],
+          fromContext: dayToStates[dayNum] ? Array.from(dayToStates[dayNum]) : []
+        });
+        
+        console.log("Setting hoveredDay to:", day);
         setHoveredDay(day);
+        
+        // Show tooltip
+        d3.select("body")
+          .select(".tooltip")
+          .html(
+            `
+            <strong>${d3.timeFormat("%b %d, %Y")(day)}</strong><br/>
+            Credit: ${hist[d.index].Credit}<br/>
+            Debit: ${hist[d.index].Debit}
+            `
+          )
+          .style("opacity", 1)
+          .style("left", (evt.pageX + 10) + "px")
+          .style("top", (evt.pageY + 10) + "px");
+      })
+      .on("mousemove", (evt) => {
+        d3.select("body")
+          .select(".tooltip")
+          .style("left", (evt.pageX + 10) + "px")
+          .style("top", (evt.pageY + 10) + "px");
       })
       .on("mouseout", () => {
+        console.log("=== Time Bar Mouseout Debug ===");
+        console.log("Clearing hoveredDay");
         setHoveredDay(null);
+        d3.select("body").select(".tooltip").style("opacity", 0);
       })
       // persistent day selection => toggle in selectedDays
       .on("click", (evt, d) => {
@@ -436,31 +504,6 @@ function TimeHistogram({
     if (tooltip.empty()) {
       d3.select("body").append("div").attr("class", "tooltip");
     }
-
-    rectSel
-      .on("mouseover", (evt, d) => {
-        // Format the date
-        const dateStr = d3.timeFormat("%b %d, %Y")(hist[d.index].date);
-        d3.select("body")
-          .select(".tooltip")
-          .html(
-            `
-        <strong>${dateStr}</strong><br/>
-        Credit: ${hist[d.index].Credit}<br/>
-        Debit: ${hist[d.index].Debit}
-      `
-          )
-          .style("opacity", 1);
-      })
-      .on("mousemove", (evt) => {
-        d3.select("body")
-          .select(".tooltip")
-          .style("left", evt.pageX + 10 + "px")
-          .style("top", evt.pageY + 10 + "px");
-      })
-      .on("mouseout", () => {
-        d3.select("body").select(".tooltip").style("opacity", 0);
-      });
 
     // Zoom
     const zoomBehavior = d3

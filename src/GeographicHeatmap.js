@@ -252,8 +252,6 @@ function GeographicHeatmap({
             return 1;
           })
           .on("mouseover", (evt, d) => {
-            console.log("Circle mouseover:", d.city); // Debug log
-            
             // Set hover state
             setHoveredCity(d.city);
             
@@ -279,8 +277,6 @@ function GeographicHeatmap({
               .style("top", (evt.pageY + 10) + "px");
           })
           .on("mouseout", () => {
-            console.log("Circle mouseout"); // Debug log
-            
             // Clear hover state
             setHoveredCity(null);
             
