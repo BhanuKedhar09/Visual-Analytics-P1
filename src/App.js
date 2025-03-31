@@ -10,6 +10,7 @@ import SleekWidget from "./SleekWidget";
 import CircleBipartite from "./CircleBipartite";
 import LineOverlay from "./LineOverlay";
 import LinkModeToggle from "./LinkModeToggle";
+import RelationshipLayerToggle from "./RelationshipLayerToggle";
 
 function App() {
   return (
@@ -96,6 +97,7 @@ function App() {
             />
           </SleekWidget>
           <LineOverlay /> {/* NEW: Overlay for drawing cross-view linking lines */}
+          <RelationshipLayerToggle />
         </div>
       </InteractionProvider>
     </DataProvider>
