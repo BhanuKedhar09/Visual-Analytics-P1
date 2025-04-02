@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import RelationshipPopupLayer from './RelationshipPopupLayer';
 
-function RelationshipLayerToggle() {
+function RelationshipLayerToggle({ popupsVisible = true }) {
   const [popups, setPopups] = useState([]);
   const [nextId, setNextId] = useState(1);
   const [savedPopups, setSavedPopups] = useState([]);
@@ -58,9 +58,77 @@ function RelationshipLayerToggle() {
     ));
   };
   
+  // Add useEffect to save popup states to localStorage
+  useEffect(() => {
+    if (popups.length > 0 || savedPopups.length > 0) {
+      localStorage.setItem('visualAnalytics.popups', JSON.stringify({
+        active: popups,
+        saved: savedPopups,
+        nextId
+      }));
+    }
+  }, [popups, savedPopups, nextId]);
+
+  // Load saved state on component mount
+  useEffect(() => {
+    try {
+      const savedState = localStorage.getItem('visualAnalytics.popups');
+      if (savedState) {
+        const { active, saved, nextId: nextIdSaved } = JSON.parse(savedState);
+        if (active && active.length) setPopups(active);
+        if (saved && saved.length) setSavedPopups(saved);
+        if (nextIdSaved) setNextId(nextIdSaved);
+      }
+    } catch (e) {
+      console.error('Error loading saved popup state:', e);
+    }
+  }, []);
+  
+  // Add a method to create a popup with pre-selected data
+  const createPopupWithData = (elementData) => {
+    // Determine the element type and create appropriate data
+    let selectedData = {};
+    
+    if (elementData.type === 'state' || elementData.type === 'city' || 
+        elementData.type === 'occupation' || elementData.type === 'merchant') {
+      selectedData.selectedSankey = {
+        name: elementData.value,
+        layer: elementData.type === 'state' ? 0 : 
+               elementData.type === 'city' ? 1 :
+               elementData.type === 'occupation' ? 2 : 3
+      };
+    } else if (elementData.type === 'time') {
+      selectedData.selectedDay = new Date(elementData.value);
+    } else if (elementData.type === 'geo-circle') {
+      selectedData.selectedCircle = elementData.value;
+    }
+    
+    // Create a new popup with this selection data
+    const newPopup = {
+      id: nextId,
+      position: { 
+        x: window.innerWidth - 520 - (popups.length * 20), 
+        y: 80 + (popups.length * 20) 
+      },
+      initialSelections: selectedData
+    };
+    
+    setPopups([...popups, newPopup]);
+    setNextId(nextId + 1);
+  };
+
+  // Make this function globally available
+  useEffect(() => {
+    window.createRelationshipPopup = createPopupWithData;
+    
+    return () => {
+      delete window.createRelationshipPopup;
+    };
+  }, [popups.length, nextId]);
+  
   return (
     <>
-      {/* Saved popups collage */}
+      {/* Saved popups collage - always visible */}
       {savedPopups.length > 0 && (
         <div 
           className="saved-popups-collage"
@@ -121,7 +189,7 @@ function RelationshipLayerToggle() {
         </div>
       )}
 
-      {/* Toggle button to create new popup */}
+      {/* Toggle button - always visible */}
       <button 
         className="layer-toggle"
         onClick={createNewPopup}
@@ -149,8 +217,8 @@ function RelationshipLayerToggle() {
         <span style={{ fontSize: '14px' }}>+</span>
       </button>
       
-      {/* Render active popups */}
-      {popups.map(popup => (
+      {/* Only render active popups if popupsVisible is true */}
+      {popupsVisible && popups.map(popup => (
         <RelationshipPopupLayer 
           key={popup.id}
           id={popup.id}

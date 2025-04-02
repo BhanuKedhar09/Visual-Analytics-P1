@@ -3,7 +3,7 @@ import * as d3 from "d3";
 
 /**
  * detectDropZone(containerBox)
- *   - Checks all elements with class="drop-zone" to see if the container’s center
+ *   - Checks all elements with class="drop-zone" to see if the container's center
  *     is within their bounding box. Returns the matched drop zone or null.
  */
 function detectDropZone(containerBox) {
@@ -59,9 +59,9 @@ function dragEndedAbs(event, d) {
  * Clicking "Copy" creates a cloned copy of the element in an absolutely positioned container.
  *
  * This version:
- *  - Measures the shape’s bounding box in the original SVG coordinate system (via getBBox()).
+ *  - Measures the shape's bounding box in the original SVG coordinate system (via getBBox()).
  *  - Converts that bounding box to page coordinates so we can size the container <div> accordingly.
- *  - Offsets the clone by +10 in x/y so it doesn’t fully overlap the original.
+ *  - Offsets the clone by +10 in x/y so it doesn't fully overlap the original.
  *  - Does NOT fade the original shape (remove the line if you want that).
  *  - Does NOT produce a dashed bounding box or outline for the container itself.
  */
@@ -93,7 +93,7 @@ export function enableCopyAndDrag(selection, onDragEndCallback = null) {
        */
       const shapeBBox = this.getBBox(); // local SVG coords
       // We also need to transform these coords into the page coordinate system.
-      // We'll do so using getBoundingClientRect on the shape’s bounding box corners.
+      // We'll do so using getBoundingClientRect on the shape's bounding box corners.
 
       // Let's get the shape's bounding box corners in local coords:
       const svgNode = this.ownerSVGElement; // the parent <svg> of the shape
@@ -122,7 +122,7 @@ export function enableCopyAndDrag(selection, onDragEndCallback = null) {
       const shapePageWidth = screenBottomRight.x - screenTopLeft.x;
       const shapePageHeight = screenBottomRight.y - screenTopLeft.y;
 
-      // 2) Create an absolutely positioned container <div> at shape’s top-left in page coords.
+      // 2) Create an absolutely positioned container <div> at shape's top-left in page coords.
       //    We'll add a +10 offset so it doesn't overlap exactly.
       const offset = 10;
       const container = d3
@@ -257,6 +257,30 @@ export function enableCopyAndDrag(selection, onDragEndCallback = null) {
           .on("drag", draggedAbs)
           .on("end", dragEndedAbs)
       );
+    });
+
+    // Add new Pop-out Graph option
+    menu.append("div")
+      .attr("class", "menu-item")
+      .text("Pop-out Relationship Graph")
+      .on("click", () => {
+        menu.remove();
+        
+        // Get the data from the element
+        const datum = d3.select(this).datum();
+        
+        // Create a new popup with this data
+        // This requires access to the createNewPopup function
+        // Either through a global function or through a callback
+        if (window.createRelationshipPopup) {
+          window.createRelationshipPopup(datum);
+        }
+      });
+
+    // Close menu on click elsewhere
+    d3.select("body").on("click.context-menu", () => {
+      menu.remove();
+      d3.select("body").on("click.context-menu", null);
     });
   });
 
