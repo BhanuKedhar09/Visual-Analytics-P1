@@ -22,6 +22,7 @@ export function InteractionProvider({ children }) {
   const [timeHighlightedCity, setTimeHighlightedCity] = useState(null);
   const [sankeyHighlightedState, setSankeyHighlightedState] = useState(null);
   const [sankeyHighlightedCity, setSankeyHighlightedCity] = useState(null);
+  const [timeHighlightedCities, setTimeHighlightedCities] = useState([]);
 
   // Debug - track changes to highlighted elements
   useEffect(() => {
@@ -110,6 +111,8 @@ export function InteractionProvider({ children }) {
         // Link display mode
         linkDisplayMode,
         setLinkDisplayMode,
+        timeHighlightedCities,
+        setTimeHighlightedCities,
       }}
     >
       {children}

@@ -52,6 +52,8 @@ function TimeHistogram({
     setDayToMerchants,
     setCityToDays,
     setCityToDaysGlobal,
+    timeHighlightedCities,
+    setTimeHighlightedCities,
   } = useContext(InteractionContext);
 
   /***************************************************
@@ -434,38 +436,63 @@ function TimeHistogram({
       // Ephemeral day hover => set hoveredDay and update the time-highlighted cities.
       .on("mouseover", (evt, d) => {
         const day = hist[d.index].date;
-        setHoveredDay(day);
-        // Determine the day number (ignore time)
         const dayNum = +d3.timeDay(day);
-        // Use the dayToCities mapping (assumed available via InteractionContext)
+        console.log("=== Time Bar Hover Debug ===");
+        console.log("Hovered Date:", d3.timeFormat("%Y-%m-%d")(day));
+        console.log("Day Number:", dayNum);
+        console.log("Transaction Counts:", {
+          Credit: hist[d.index].Credit,
+          Debit: hist[d.index].Debit
+        });
+        
+        // Log cities for this day
         const citiesForDay = dayToCities[dayNum] ? Array.from(dayToCities[dayNum]) : [];
-        // If exactly one city is involved, set that as the time highlight.
-        if (citiesForDay.length === 1) {
-            setTimeHighlightedCity(citiesForDay[0]);
+        console.log("Cities for this day:", citiesForDay);
+        
+        // Log states for this day
+        const statesForDay = dayToStates[dayNum] ? Array.from(dayToStates[dayNum]) : [];
+        console.log("States for this day:", statesForDay);
+        
+        console.log("Setting hoveredDay to:", day);
+        setHoveredDay(day);
+        
+        // Set all cities for this day as time-highlighted
+        if (citiesForDay.length > 0) {
+          console.log(`Setting timeHighlightedCities to all ${citiesForDay.length} cities for this day`);
+          setTimeHighlightedCities(citiesForDay);
         } else {
-            setTimeHighlightedCity(null);
+          setTimeHighlightedCities([]);
         }
-        // (Optionally update tooltip here as you already do.)
+        
+        // Show tooltip
         d3.select("body")
           .select(".tooltip")
           .html(
-            `<strong>${d3.timeFormat("%b %d, %Y")(day)}</strong><br/>
-             Credit: ${hist[d.index].Credit}<br/>
-             Debit: ${hist[d.index].Debit}`
+            `
+            <strong>${d3.timeFormat("%b %d, %Y")(day)}</strong><br/>
+            Credit: ${hist[d.index].Credit}<br/>
+            Debit: ${hist[d.index].Debit}
+            `
           )
           .style("opacity", 1)
           .style("left", (evt.pageX + 10) + "px")
           .style("top", (evt.pageY + 10) + "px");
-    })
-    .on("mousemove", (evt) => {
-      d3.select("body")
-        .select(".tooltip")
-        .style("left", (evt.pageX + 10) + "px")
-        .style("top", (evt.pageY + 10) + "px");
-  })
+      })
+      .on("mousemove", (evt) => {
+        d3.select("body")
+          .select(".tooltip")
+          .style("left", (evt.pageX + 10) + "px")
+          .style("top", (evt.pageY + 10) + "px");
+      })
       .on("mouseout", () => {
+        console.log("=== Time Bar Mouseout Debug ===");
+        console.log("Clearing hoveredDay");
         setHoveredDay(null);
-        setTimeHighlightedCity(null);
+        
+        // Clear all highlighting
+        console.log("Clearing timeHighlightedCities");
+        setTimeHighlightedCities([]);
+        
         d3.select("body").select(".tooltip").style("opacity", 0);
       })
       // persistent day selection => toggle in selectedDays

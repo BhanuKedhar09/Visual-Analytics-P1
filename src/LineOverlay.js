@@ -39,11 +39,18 @@ const LineOverlay = () => {
     console.log("hoveredCity:", hoveredCity);
     console.log("linkDisplayMode:", linkDisplayMode);
     
-    // Clear lines if in HIGHLIGHT_ONLY mode
+    // Clear lines if in HIGHLIGHT_ONLY mode, but still allow highlighting
     if (linkDisplayMode === LinkDisplayMode.HIGHLIGHT_ONLY) {
       setLines([]);
-      // Clear any sankey highlights when in highlight-only mode
-      setSankeyHighlightedCity(null);
+      
+      // Still highlight the Sankey node even in highlight-only mode
+      if (hoveredCity) {
+        console.log(`Setting sankeyHighlightedCity to: ${hoveredCity} (highlight-only mode)`);
+        setSankeyHighlightedCity(hoveredCity);
+      } else {
+        setSankeyHighlightedCity(null);
+      }
+      
       return;
     }
     
@@ -54,7 +61,8 @@ const LineOverlay = () => {
     if (hoveredCity && linkDisplayMode === LinkDisplayMode.SHOW_LINKS) {
       console.log(`Drawing connections for city: ${hoveredCity}`);
       
-      // Highlight the corresponding Sankey node when a city is hovered
+      // Make sure to highlight the city in Sankey
+      console.log(`Setting sankeyHighlightedCity to: ${hoveredCity}`);
       setSankeyHighlightedCity(hoveredCity);
       
       // Find the geo circle element for this city
@@ -92,10 +100,22 @@ const LineOverlay = () => {
           }
         });
         
-        // 2. Connect to Sankey city node
-        const cityNodeId = `sankey-node-${hoveredCity}`;
-        const cityNodeEl = document.getElementById(cityNodeId);
+        // 2. Connect to Sankey city node - FIX: Use the new ID format
+        const formattedCityName = hoveredCity.replace(/\s+/g, '-');
+        const cityNodeId = `sankey-node-city-${formattedCityName}`;
+        console.log(`Looking for Sankey city node: ${cityNodeId}`);
+        
+        let cityNodeEl = document.getElementById(cityNodeId);
+        
+        // Try fallback to old format if not found
+        if (!cityNodeEl) {
+          const oldFormatId = `sankey-node-${hoveredCity}`;
+          console.log(`Trying old format ID: ${oldFormatId}`);
+          cityNodeEl = document.getElementById(oldFormatId);
+        }
+        
         if (cityNodeEl) {
+          console.log(`Found Sankey node for city: ${hoveredCity}`);
           const nodeRect = cityNodeEl.getBoundingClientRect();
           const nodeCenter = {
             x: nodeRect.left + nodeRect.width / 2,
@@ -108,12 +128,24 @@ const LineOverlay = () => {
             type: "city-to-sankey"
           });
           
-          // FIXED: Find the state for this city and highlight the state node as well
-          // This requires looking up which state this city belongs to
+          // Find the state for this city to draw a line to it, but DON'T highlight it
           const cityState = findStateForCity(hoveredCity, data);
           if (cityState) {
-            const stateNodeEl = document.getElementById(`sankey-node-${cityState}`);
+            const formattedStateName = cityState.replace(/\s+/g, '-');
+            const stateNodeId = `sankey-node-state-${formattedStateName}`;
+            console.log(`Looking for Sankey state node: ${stateNodeId}`);
+            
+            let stateNodeEl = document.getElementById(stateNodeId);
+            
+            // Try fallback to old format if not found
+            if (!stateNodeEl) {
+              const oldFormatId = `sankey-node-${cityState}`;
+              console.log(`Trying old format ID: ${oldFormatId}`);
+              stateNodeEl = document.getElementById(oldFormatId);
+            }
+            
             if (stateNodeEl) {
+              console.log(`Found Sankey node for state: ${cityState}`);
               const stateRect = stateNodeEl.getBoundingClientRect();
               const stateCenter = {
                 x: stateRect.left + stateRect.width / 2,
@@ -126,19 +158,21 @@ const LineOverlay = () => {
                 type: "city-to-state-sankey"
               });
               
-              // Also highlight the state node in the Sankey diagram
-              setSankeyHighlightedState(cityState);
+              // DON'T highlight the state node to avoid highlighting all cities
+              // setSankeyHighlightedState(cityState); - REMOVED
+            } else {
+              console.log(`Could not find Sankey node for state: ${cityState}`);
             }
           }
+        } else {
+          console.log(`Could not find Sankey node for city: ${hoveredCity}`);
         }
       }
     }
     
     // CASE 2: Handle time bar hover
     if (hoveredDay && !hoveredCity && linkDisplayMode === LinkDisplayMode.SHOW_LINKS) {
-      // Clear any highlighted Sankey city when hovering a time bar
-      setSankeyHighlightedCity(null);
-      
+      // Get day information
       const dayStr = d3.timeFormat("%Y-%m-%d")(hoveredDay);
       const dayNum = +d3.timeDay(hoveredDay);
       
@@ -160,6 +194,7 @@ const LineOverlay = () => {
         // Connect to cities for this day
         if (dayToCities[dayNum]) {
           dayToCities[dayNum].forEach(city => {
+            // Connect to GeoMap city circles
             const targetEl = document.getElementById(`geo-circle-${city}`);
             if (targetEl) {
               const targetRect = targetEl.getBoundingClientRect();
@@ -175,10 +210,23 @@ const LineOverlay = () => {
               });
             }
             
-            // FIXED: Also connect to corresponding Sankey city nodes
-            const sankeyNodeEl = document.getElementById(`sankey-node-${city}`);
-            if (sankeyNodeEl) {
-              const nodeRect = sankeyNodeEl.getBoundingClientRect();
+            // Connect to Sankey city nodes - FIX: Use the new ID format
+            const formattedCityName = city.replace(/\s+/g, '-');
+            const cityNodeId = `sankey-node-city-${formattedCityName}`;
+            console.log(`Looking for Sankey city node: ${cityNodeId}`);
+            
+            let cityNodeEl = document.getElementById(cityNodeId);
+            
+            // Try fallback to old format if not found
+            if (!cityNodeEl) {
+              const oldFormatId = `sankey-node-${city}`;
+              console.log(`Trying old format ID: ${oldFormatId}`);
+              cityNodeEl = document.getElementById(oldFormatId);
+            }
+            
+            if (cityNodeEl) {
+              console.log(`Found Sankey city node for ${city}`);
+              const nodeRect = cityNodeEl.getBoundingClientRect();
               const nodeCenter = {
                 x: nodeRect.left + nodeRect.width / 2,
                 y: nodeRect.top + nodeRect.height / 2
@@ -189,6 +237,8 @@ const LineOverlay = () => {
                 to: nodeCenter,
                 type: "time-to-sankey-city"
               });
+            } else {
+              console.log(`Could not find Sankey city node for ${city}`);
             }
           });
         }
@@ -196,9 +246,22 @@ const LineOverlay = () => {
         // Connect to states for this day
         if (dayToStates[dayNum]) {
           dayToStates[dayNum].forEach(state => {
-            // FIXED: Connect to Sankey state nodes
-            const stateNodeEl = document.getElementById(`sankey-node-${state}`);
+            // Connect to Sankey state nodes - FIX: Use the new ID format
+            const formattedStateName = state.replace(/\s+/g, '-');
+            const stateNodeId = `sankey-node-state-${formattedStateName}`;
+            console.log(`Looking for Sankey state node: ${stateNodeId}`);
+            
+            let stateNodeEl = document.getElementById(stateNodeId);
+            
+            // Try fallback to old format if not found
+            if (!stateNodeEl) {
+              const oldFormatId = `sankey-node-${state}`;
+              console.log(`Trying old format ID: ${oldFormatId}`);
+              stateNodeEl = document.getElementById(oldFormatId);
+            }
+            
             if (stateNodeEl) {
+              console.log(`Found Sankey state node for ${state}`);
               const nodeRect = stateNodeEl.getBoundingClientRect();
               const nodeCenter = {
                 x: nodeRect.left + nodeRect.width / 2,
@@ -210,6 +273,8 @@ const LineOverlay = () => {
                 to: nodeCenter,
                 type: "time-to-sankey-state"
               });
+            } else {
+              console.log(`Could not find Sankey state node for ${state}`);
             }
           });
         }
@@ -224,12 +289,21 @@ const LineOverlay = () => {
                            hoveredSankey.layer === 2 ? "occupation" : "merchant";
       
       // Use the new ID format
-      const nodeId = `sankey-node-${sourceNodeType}-${hoveredSankey.name.replace(/\s+/g, '-')}`;
+      const formattedName = hoveredSankey.name.replace(/\s+/g, '-');
+      const nodeId = `sankey-node-${sourceNodeType}-${formattedName}`;
       console.log(`Looking for Sankey node with ID: ${nodeId}`);
       
-      const sourceEl = document.getElementById(nodeId);
+      let sourceEl = document.getElementById(nodeId);
+      
+      // Try fallback to old format if needed
+      if (!sourceEl) {
+        const oldFormatId = `sankey-node-${hoveredSankey.name}`;
+        console.log(`Trying old format ID: ${oldFormatId}`);
+        sourceEl = document.getElementById(oldFormatId);
+      }
+      
       if (sourceEl) {
-        console.log(`Found Sankey node: ${nodeId}`);
+        console.log(`Found Sankey node: ${nodeId || 'old-format'}`);
         const sourceRect = sourceEl.getBoundingClientRect();
         const sourceCenter = {
           x: sourceRect.left + sourceRect.width / 2,
@@ -238,9 +312,13 @@ const LineOverlay = () => {
 
         // 1. Connect to cities if available
         if (hoveredSankey.connectedCities && hoveredSankey.connectedCities.length > 0) {
+          console.log(`Found ${hoveredSankey.connectedCities.length} connected cities`);
           hoveredSankey.connectedCities.forEach(city => {
-            const targetEl = document.getElementById(`geo-circle-${city}`);
+            const cityId = `geo-circle-${city}`;
+            console.log(`Looking for GeoMap circle: ${cityId}`);
+            const targetEl = document.getElementById(cityId);
             if (targetEl) {
+              console.log(`Found GeoMap circle for: ${city}`);
               const targetRect = targetEl.getBoundingClientRect();
               const cityCenter = {
                 x: targetRect.left + targetRect.width / 2,
@@ -252,8 +330,12 @@ const LineOverlay = () => {
                 to: cityCenter,
                 type: "sankey-to-city"
               });
+            } else {
+              console.log(`Could not find GeoMap circle for: ${city}`);
             }
           });
+        } else {
+          console.log("No connected cities found for this Sankey node");
         }
         
         // 2. Connect to time bars based on connected cities
@@ -274,9 +356,13 @@ const LineOverlay = () => {
         }
         
         // Connect to all days found
+        console.log(`Found ${daysToHighlight.size} days to highlight`);
         daysToHighlight.forEach(dayStr => {
-          const barEl = document.getElementById(`time-bar-${dayStr}`);
+          const timeBarId = `time-bar-${dayStr}`;
+          console.log(`Looking for time bar: ${timeBarId}`);
+          const barEl = document.getElementById(timeBarId);
           if (barEl) {
+            console.log(`Found time bar for: ${dayStr}`);
             const barRect = barEl.getBoundingClientRect();
             const barCenter = {
               x: barRect.left + barRect.width / 2, 
@@ -288,8 +374,12 @@ const LineOverlay = () => {
               to: barCenter,
               type: "sankey-to-time"
             });
+          } else {
+            console.log(`Could not find time bar for: ${dayStr}`);
           }
         });
+      } else {
+        console.log(`Could not find Sankey node: ${hoveredSankey.name}`);
       }
     }
     

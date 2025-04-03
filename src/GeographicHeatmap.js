@@ -266,6 +266,23 @@ function GeographicHeatmap({
             return 1;
           })
           .on("mouseover", (evt, d) => {
+            // Set hover state
+            setHoveredCity(d.city);
+            
+            // Debug info to console
+            console.log("GeoMap Circle Hover:", {
+              city: d.city,
+              state: d.state,
+              action: "Highlighting ONLY this specific city in Sankey"
+            });
+            
+            // ONLY highlight this specific city in the Sankey diagram
+            // NOT highlighting the state to prevent multiple cities from highlighting
+            setSankeyHighlightedCity(d.city);
+            
+            // Explicitly ensure state is not highlighted 
+            setSankeyHighlightedState(null);
+            
             // Show tooltip
             d3.select("body")
               .select(".tooltip")
@@ -279,28 +296,6 @@ function GeographicHeatmap({
               .style("opacity", 1)
               .style("left", (evt.pageX + 10) + "px")
               .style("top", (evt.pageY + 10) + "px");
-            console.log("GeoMap Circle Mouseover:", d);
-            // Set local hovered city
-            setHoveredCity(d.city);
-            // Also update the sankey hover info.
-            // Compute connectedDays from cityToDaysGlobal for this city
-            let connectedDays = [];
-            const daySet = cityToDaysGlobal[d.city];
-            if (daySet) {
-              daySet.forEach(dayNum => {
-                // Format day to a string (e.g., "2023-04-11")
-                connectedDays.push(d3.timeFormat("%Y-%m-%d")(new Date(dayNum)));
-              });
-            }
-            // Create a hoveredSankey object for a city node.
-            setHoveredSankey({
-              layer: 1,
-              name: d.city,
-              connectedCities: [d.city],
-              connectedDays: Array.from(new Set(connectedDays))
-            });
-            // Also set the Sankey highlighted city (and clear state highlight)
-            setSankeyHighlightedCity(d.city);
           })
           .on("mousemove", (evt) => {
             // Update tooltip position
@@ -313,8 +308,9 @@ function GeographicHeatmap({
             console.log("GeoMap Circle Mouseout: Clearing highlights");
             // Clear both local hover and sankey hover/highlight
             setHoveredCity(null);
-            setHoveredSankey(null);
             setSankeyHighlightedCity(null);
+            setSankeyHighlightedState(null); // This needs to be explicitly cleared to avoid state highlighting
+            
             // Hide tooltip
             d3.select("body")
               .select(".tooltip")
