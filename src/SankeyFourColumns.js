@@ -24,6 +24,7 @@ function SankeyFourColumns({
   const { data } = useContext(DataContext);
   const {
     hoveredSankey,
+    hoveredCity,
     setHoveredSankey,
     selectedSankeyNodes,
     setSelectedSankeyNodes,
@@ -331,13 +332,22 @@ function SankeyFourColumns({
             .attr("stroke", "red")
             .attr("stroke-opacity", 1);
           setHoveredSankeyLink(d);
+          
+          // Stop any timer that might be removing highlights
+          if (window.linkHighlightTimer) {
+            clearTimeout(window.linkHighlightTimer);
+            window.linkHighlightTimer = null;
+          }
         })
         .on("mouseout", (evt, d) => {
-          d3.select(evt.currentTarget)
-            .attr("stroke", "#999")
-            .attr("stroke-opacity", 0.6);
-          setHoveredSankeyLink(null);
-          setHoveredSankey(null);
+          // Add a delay before removing the highlight
+          window.linkHighlightTimer = setTimeout(() => {
+            d3.select(evt.currentTarget)
+              .attr("stroke", "#999")
+              .attr("stroke-opacity", 0.6);
+            setHoveredSankeyLink(null);
+            setHoveredSankey(null);
+          }, 100); // 100ms delay helps avoid flickering
         });
 
       // 2) Draw nodes
@@ -347,20 +357,32 @@ function SankeyFourColumns({
         .data(sankeyLayout.nodes)
         .enter()
         .append("rect")
-        .attr("id", (d) => "sankey-node-" + d.name)
+        .attr("id", (d) => {
+          // Create more specific IDs to help with debugging
+          const layerType = d.layer === 0 ? "state" : 
+                          d.layer === 1 ? "city" : 
+                          d.layer === 2 ? "occupation" : "merchant";
+          return `sankey-node-${layerType}-${d.name.replace(/\s+/g, '-')}`;
+        })
+        .attr("class", (d) => {
+          const layerType = d.layer === 0 ? "state-node" : 
+                          d.layer === 1 ? "city-node" : 
+                          d.layer === 2 ? "occupation-node" : "merchant-node";
+          return `sankey-node ${layerType}`;
+        })
+        .attr("data-layer", d => d.layer)
+        .attr("data-name", d => d.name)
         .attr("x", (d) => d.x0)
         .attr("y", (d) => d.y0)
         .attr("width", (d) => d.x1 - d.x0)
         .attr("height", (d) => d.y1 - d.y0)
         .attr("stroke", "#fff")
         .attr("stroke-width", 1)
-        .attr("fill", (d) => {
-          if (d.layer === 0) return "#4E79A7"; // state
-          if (d.layer === 1) return "#AA3377"; // city
-          if (d.layer === 2) return "#59A14F"; // occupation
-          return "#E15759"; // merchant
-        })
+        .attr("fill", (d) => defaultColorByLayer(d.layer))
         .on("mouseover", (evt, d) => {
+          /* The code is a JavaScript snippet that checks if the `sankeyLayoutRef.current` is falsy
+          (null, undefined, 0, false, etc.), and if so, it immediately returns from the current
+          function or block of code. */
           if (!sankeyLayoutRef.current) return;
           
           // Initialize empty arrays to collect connected elements
@@ -422,9 +444,26 @@ function SankeyFourColumns({
               console.log("ERROR: dayToStates is empty or undefined!", dayToStates);
             }
             
+            // Convert set to array for the hoveredSankey object - FIX: Added for state nodes
+            const daysArray = Array.from(connectedDays);
+            
+            // Set the hoveredSankey with node info, connected cities and connected days - FIX: Added for state nodes
+            const hoveredSankeyObj = {
+              layer: d.layer,
+              name: d.name,
+              index: d.index,
+              connectedCities,
+              connectedDays: daysArray
+            };
+            
+            setHoveredSankey(hoveredSankeyObj);
+            
           } else if (d.layer === 1) {
             // For city nodes, just use the name directly
             connectedCities = [d.name];
+            
+            // FIX: Set highlightedCity to highlight this city on the map
+            setHighlightedCity(d.name);
             
             // Find days related to this city using dayToCities
             if (dayToCities && Object.keys(dayToCities).length > 0) {
@@ -455,6 +494,12 @@ function SankeyFourColumns({
             setHoveredSankey(hoveredSankeyObj);
           }
           
+          // Stop any timer that might be removing highlights from links
+          if (window.nodeHighlightTimer) {
+            clearTimeout(window.nodeHighlightTimer);
+            window.nodeHighlightTimer = null;
+          }
+          
           // Now highlight sankey links...
           linkGroup
             .selectAll("path")
@@ -470,11 +515,20 @@ function SankeyFourColumns({
             );
         })
         .on("mouseout", (evt, d) => {
-          setHoveredSankey(null);
-          linkGroup
-            .selectAll("path")
-            .attr("stroke", "#999")
-            .attr("stroke-opacity", 0.4);
+          // Add a delay before removing the highlight
+          window.nodeHighlightTimer = setTimeout(() => {
+            setHoveredSankey(null);
+            
+            // FIX: Clear the highlighted city on mouseout
+            if (d.layer === 1) {
+              setHighlightedCity(null);
+            }
+            
+            linkGroup
+              .selectAll("path")
+              .attr("stroke", "#999")
+              .attr("stroke-opacity", 0.4);
+          }, 100); // 100ms delay helps avoid flickering
         })
         .on("click", (evt, d) => {
           evt.stopPropagation();
@@ -486,6 +540,7 @@ function SankeyFourColumns({
             return newSet;
           });
         });
+
       nodeSel.each(function (d) {
         // e.g. if d.layer===0 => "state", layer===1 => "city", etc.
         d.type = "sankeyNode";
@@ -585,17 +640,48 @@ function SankeyFourColumns({
   // 3) Color nodes (like in GeographicHeatmap)
   useEffect(() => {
     if (!nodesRef.current) return;
-    nodesRef.current.attr("fill", (d) => {
+    
+    // Debug info
+    console.log("Sankey highlighting update:", {
+      sankeyHighlightedCity,
+      sankeyHighlightedState,
+      nodeCount: nodesRef.current.size()
+    });
+    
+    // CRITICAL FIX: First reset all nodes to their default colors
+    // This prevents any state bleeding where previously highlighted nodes remain highlighted
+    nodesRef.current.attr("fill", d => defaultColorByLayer(d.layer));
+    
+    // Now apply specific highlights to the relevant nodes
+    nodesRef.current.filter(d => {
+      return (d.layer === 0 && d.name === sankeyHighlightedState) || 
+             (d.layer === 1 && d.name === sankeyHighlightedCity) ||
+             (highlightedState && d.layer === 0 && d.name === highlightedState) ||
+             (highlightedCity && d.layer === 1 && d.name === highlightedCity) ||
+             (hoveredSankey && hoveredSankey.layer === d.layer && hoveredSankey.name === d.name) ||
+             selectedSankeyNodes.has(`${d.layer}||${d.name}`);
+    }).attr("fill", d => {
       const nodeKey = `${d.layer}||${d.name}`;
-      if (d.layer === 0 && d.name === sankeyHighlightedState) return "red";
-      if (d.layer === 1 && d.name === sankeyHighlightedCity) return "red";
-      // Highlight if this node matches the drop-set map highlight.
-      if (highlightedState && d.layer === 0 && d.name === highlightedState)
+      
+      // Apply highlight from external context (sankeyHighlightedState/City)
+      if (d.layer === 0 && d.name === sankeyHighlightedState) {
+        console.log(`Highlighting state node: ${d.name}`);
         return "red";
-      if (highlightedCity && d.layer === 1 && d.name === highlightedCity)
+      }
+      if (d.layer === 1 && d.name === sankeyHighlightedCity) {
+        console.log(`Highlighting city node: ${d.name}`);
         return "red";
+      }
+      
+      // Highlight if this node matches the drop-set map highlight
+      if (highlightedState && d.layer === 0 && d.name === highlightedState) {
+        return "red";
+      }
+      if (highlightedCity && d.layer === 1 && d.name === highlightedCity) {
+        return "red";
+      }
 
-      // Also apply hover/selection highlighting as before.
+      // Apply hover/selection highlighting
       if (
         hoveredSankey &&
         hoveredSankey.layer === d.layer &&
@@ -606,21 +692,21 @@ function SankeyFourColumns({
       if (selectedSankeyNodes.has(nodeKey)) {
         return "blue";
       }
+      
+      // If we're here, just use the default color (though this shouldn't happen due to the filter)
       return defaultColorByLayer(d.layer);
     });
   }, [
     hoveredSankey,
     selectedSankeyNodes,
-    sankeyHighlightedState, // <-- add
+    sankeyHighlightedState,
     sankeyHighlightedCity,
+    highlightedState,
+    highlightedCity,
     setHighlightedState,
     setHighlightedCity,
     setTimeHighlightedState,
     setTimeHighlightedCity,
-    sankeyHighlightedState,
-    setSankeyHighlightedState,
-    sankeyHighlightedCity,
-    setSankeyHighlightedCity,
   ]);
 
   useEffect(() => {
@@ -633,9 +719,66 @@ function SankeyFourColumns({
       return;
     }
 
+    console.log("Sankey link highlight calculation:", {
+      sankeyHighlightedCity,
+      sankeyHighlightedState,
+      hasLinks: sankeyLayoutRef.current?.links?.length > 0
+    });
+
     const { nodes, links } = sankeyLayoutRef.current;
     const connectedLinkIndices = new Set();
     const connectedNodeIndices = new Set();
+
+
+
+
+    function bfsFromNode(startNodeIndex) {
+      const queue = [startNodeIndex];
+      const visited = new Set([startNodeIndex]);
+  
+      while (queue.length > 0) {
+        const currentIndex = queue.shift();
+  
+        // Explore all links that connect to currentIndex
+        links.forEach((link, i) => {
+          if (link.source.index === currentIndex || link.target.index === currentIndex) {
+            connectedLinkIndices.add(i);
+            connectedNodeIndices.add(link.source.index);
+            connectedNodeIndices.add(link.target.index);
+  
+            // Whichever side is not currentIndex is the neighbor
+            const neighborIndex =
+              link.source.index === currentIndex
+                ? link.target.index
+                : link.source.index;
+  
+            if (!visited.has(neighborIndex)) {
+              visited.add(neighborIndex);
+              queue.push(neighborIndex);
+            }
+          }
+        });
+      }
+    }
+
+    if (sankeyHighlightedCity) {
+      const cityNode = nodes.find(
+        (n) => n.layer === 1 && n.name === sankeyHighlightedCity
+      );
+      if (cityNode) {
+        bfsFromNode(cityNode.index);
+      }
+    }
+  
+    // If sankeyHighlightedState is set, find that state node in layer=0
+    if (sankeyHighlightedState) {
+      const stateNode = nodes.find(
+        (n) => n.layer === 0 && n.name === sankeyHighlightedState
+      );
+      if (stateNode) {
+        bfsFromNode(stateNode.index);
+      }
+    }
 
     // Find the relevant nodes
     const cityNode =
@@ -644,61 +787,49 @@ function SankeyFourColumns({
     const stateNode =
       sankeyHighlightedState &&
       nodes.find((n) => n.layer === 0 && n.name === sankeyHighlightedState);
-
-    if (cityNode && stateNode) {
-      //
-      // (A) Highlight ONLY the single link from the state node to the city node
-      //
+    
+    if (cityNode) {
+      console.log(`Found city node: ${cityNode.name}, index: ${cityNode.index}`);
+      
+      // Add the city node itself to highlighted nodes
+      connectedNodeIndices.add(cityNode.index);
+      
+      // For city nodes, we need to find:
+      // 1. Links between this city and occupations (one step ahead)
+      // 2. Link connecting this city to its state (one step back)
+      
       links.forEach((link, i) => {
-        if (
-          link.source.index === stateNode.index &&
-          link.target.index === cityNode.index
-        ) {
+        // Find links where this city is source (city → occupation)
+        if (link.source.index === cityNode.index) {
           connectedLinkIndices.add(i);
-          connectedNodeIndices.add(link.source.index);
-          connectedNodeIndices.add(link.target.index);
+          connectedNodeIndices.add(link.target.index); // The occupation node
+          console.log(`Found forward link ${i}: ${cityNode.name} → ${link.target.name}`);
         }
-      });
-
-      //
-      // (B) ALSO highlight all links that connect to that city node
-      //     (i.e. city→occupation, city→anything else)
-      //
-      links.forEach((link, i) => {
-        if (
-          link.source.index === cityNode.index ||
-          link.target.index === cityNode.index
-        ) {
+        
+        // Find link where this city is target (state → city)
+        if (link.target.index === cityNode.index) {
           connectedLinkIndices.add(i);
-          connectedNodeIndices.add(link.source.index);
-          connectedNodeIndices.add(link.target.index);
-        }
-      });
-    } else if (cityNode) {
-      // ONLY city is highlighted => highlight all links connected to that city
-      links.forEach((link, i) => {
-        if (
-          link.source.index === cityNode.index ||
-          link.target.index === cityNode.index
-        ) {
-          connectedLinkIndices.add(i);
-          connectedNodeIndices.add(link.source.index);
-          connectedNodeIndices.add(link.target.index);
+          connectedNodeIndices.add(link.source.index); // The state node
+          console.log(`Found backward link ${i}: ${link.source.name} → ${cityNode.name}`);
         }
       });
     } else if (stateNode) {
       // ONLY state is highlighted => highlight all links connected to that state
+      console.log(`Found state node: ${stateNode.name}, index: ${stateNode.index}`);
+      
+      // Add the state node itself to highlighted nodes
+      connectedNodeIndices.add(stateNode.index);
+      
       links.forEach((link, i) => {
-        if (
-          link.source.index === stateNode.index ||
-          link.target.index === stateNode.index
-        ) {
+        if (link.source.index === stateNode.index) {
           connectedLinkIndices.add(i);
-          connectedNodeIndices.add(link.source.index);
           connectedNodeIndices.add(link.target.index);
+          console.log(`Found link ${i}: ${stateNode.name} → ${link.target.name}`);
         }
       });
     }
+
+    console.log(`Highlighting ${connectedLinkIndices.size} links and ${connectedNodeIndices.size} nodes`);
 
     // Save in state => a later useEffect or direct .attr() call updates the visuals
     setHighlightedLinks(connectedLinkIndices);
@@ -706,6 +837,8 @@ function SankeyFourColumns({
   }, [sankeyHighlightedCity, sankeyHighlightedState]);
 
   // then you likely have another useEffect that updates the link styling:
+
+
   useEffect(() => {
     if (linkSelectionRef.current) {
       linkSelectionRef.current
@@ -713,6 +846,177 @@ function SankeyFourColumns({
         .attr("stroke-opacity", (d, i) => (highlightedLinks.has(i) ? 1 : 0.6));
     }
   }, [highlightedLinks]);
+
+useEffect(() => {
+  if (!sankeyLayoutRef.current) return;
+
+  // If no highlighting is active in any view, clear all highlights.
+  if (
+    !sankeyHighlightedCity &&
+    !sankeyHighlightedState &&
+    !hoveredCity &&
+    !timeHighlightedCity &&
+    !timeHighlightedState
+  ) {
+    setHighlightedLinks(new Set());
+    setHighlightedNodes(new Set());
+    return;
+  }
+
+  const { nodes, links } = sankeyLayoutRef.current;
+  const connectedLinkIndices = new Set();
+  const connectedNodeIndices = new Set();
+
+  // Determine effective highlights.
+  // For cities, if timeHighlightedCity is available (could be multiple), use that;
+  // otherwise, fall back to sankeyHighlightedCity or hoveredCity.
+  
+  let effectiveCities = [];
+  if (timeHighlightedCity) {
+    effectiveCities = Array.isArray(timeHighlightedCity)
+      ? timeHighlightedCity
+      : [timeHighlightedCity];
+  } else if (sankeyHighlightedCity || hoveredCity) {
+    effectiveCities = [sankeyHighlightedCity || hoveredCity];
+  }
+
+  // For state, use timeHighlightedState if available, else sankeyHighlightedState.
+  let effectiveStates = [];
+  if (timeHighlightedState) {
+    effectiveStates = [timeHighlightedState];
+  } else if (sankeyHighlightedState) {
+    effectiveStates = [sankeyHighlightedState];
+  }
+
+  // Highlight all links connected to each effective city node.
+  effectiveCities.forEach((city) => {
+    const cityNode = nodes.find((n) => n.layer === 1 && n.name === city);
+    if (cityNode) {
+      links.forEach((link, i) => {
+        if (link.source.index === cityNode.index || link.target.index === cityNode.index) {
+          connectedLinkIndices.add(i);
+          connectedNodeIndices.add(link.source.index);
+          connectedNodeIndices.add(link.target.index);
+        }
+      });
+    }
+  });
+
+  // Also highlight all links connected to each effective state node.
+  effectiveStates.forEach((state) => {
+    const stateNode = nodes.find((n) => n.layer === 0 && n.name === state);
+    if (stateNode) {
+      links.forEach((link, i) => {
+        if (link.source.index === stateNode.index || link.target.index === stateNode.index) {
+          connectedLinkIndices.add(i);
+          connectedNodeIndices.add(link.source.index);
+          connectedNodeIndices.add(link.target.index);
+        }
+      });
+    }
+  });
+
+  console.log(
+    `Highlighting ${connectedLinkIndices.size} links and ${connectedNodeIndices.size} nodes based on effective cities: ${effectiveCities} and effective states: ${effectiveStates}`
+  );
+  setHighlightedLinks(connectedLinkIndices);
+  setHighlightedNodes(connectedNodeIndices);
+}, [
+  sankeyHighlightedCity,
+  sankeyHighlightedState,
+  hoveredCity,
+  timeHighlightedCity,
+  timeHighlightedState
+]);
+
+// Inside SankeyFourColumns.js, in the effect that colors the nodes (near the end of the file)
+useEffect(() => {
+  if (!nodesRef.current) return;
+
+  // First reset all nodes to their default colors
+  nodesRef.current.attr("fill", d => defaultColorByLayer(d.layer));
+
+  // Now apply highlights: include nodes that are highlighted via sankeyHighlightedCity
+  // OR if the global timeHighlightedCity is defined as an array and includes the node's name.
+  nodesRef.current.filter(d => {
+    return (
+      (d.layer === 0 && d.name === sankeyHighlightedState) ||
+      (d.layer === 1 &&
+         (d.name === sankeyHighlightedCity ||
+          (Array.isArray(timeHighlightedCity) && timeHighlightedCity.includes(d.name)))) ||
+      (highlightedState && d.layer === 0 && d.name === highlightedState) ||
+      (highlightedCity && d.layer === 1 && d.name === highlightedCity) ||
+      (hoveredSankey && hoveredSankey.layer === d.layer && hoveredSankey.name === d.name) ||
+      selectedSankeyNodes.has(`${d.layer}||${d.name}`)
+    );
+  }).attr("fill", d => {
+    // Here, for instance, we use "red" for highlighting.
+    if (d.layer === 0 && d.name === sankeyHighlightedState) return "red";
+    if (d.layer === 1 && (d.name === sankeyHighlightedCity ||
+         (Array.isArray(timeHighlightedCity) && timeHighlightedCity.includes(d.name))))
+      return "red";
+    if (highlightedState && d.layer === 0 && d.name === highlightedState) return "red";
+    if (highlightedCity && d.layer === 1 && d.name === highlightedCity) return "red";
+    if (hoveredSankey && hoveredSankey.layer === d.layer && hoveredSankey.name === d.name)
+      return "red";
+    if (selectedSankeyNodes.has(`${d.layer}||${d.name}`)) return "blue";
+    return defaultColorByLayer(d.layer);
+  });
+}, [
+  hoveredSankey,
+  selectedSankeyNodes,
+  sankeyHighlightedState,
+  sankeyHighlightedCity,
+  highlightedState,
+  highlightedCity,
+  timeHighlightedCity, // added
+  setTimeHighlightedCity,
+]);
+
+useEffect(() => {
+  if (!nodesRef.current) return;
+  nodesRef.current.attr("fill", (d) => {
+    const nodeKey = `${d.layer}||${d.name}`;
+    // For state nodes, check direct equality:
+    if (d.layer === 0 && d.name === sankeyHighlightedState) return "red";
+    // For city nodes, check if the node is highlighted by sankey or via the time-highlighted cities array.
+    if (d.layer === 1) {
+      if (
+        d.name === sankeyHighlightedCity ||
+        (Array.isArray(timeHighlightedCity) && timeHighlightedCity.includes(d.name))
+      ) {
+        return "red";
+      }
+    }
+    // Also check if the node matches the explicit highlighted values:
+    if (highlightedState && d.layer === 0 && d.name === highlightedState)
+      return "red";
+    if (highlightedCity && d.layer === 1 && d.name === highlightedCity)
+      return "red";
+    // Also apply hover/selection highlighting as before.
+    if (
+      hoveredSankey &&
+      hoveredSankey.layer === d.layer &&
+      hoveredSankey.name === d.name
+    ) {
+      return "red";
+    }
+    if (selectedSankeyNodes.has(nodeKey)) {
+      return "blue";
+    }
+    return defaultColorByLayer(d.layer);
+  });
+}, [
+  hoveredSankey,
+  selectedSankeyNodes,
+  sankeyHighlightedState,
+  sankeyHighlightedCity,
+  highlightedState,
+  highlightedCity,
+  timeHighlightedCity,  // added this dependency
+]);
+
+
 
   return (
     <div
@@ -730,10 +1034,19 @@ function SankeyFourColumns({
 }
 
 function defaultColorByLayer(layer) {
-  if (layer === 0) return "#4E79A7"; // states
-  if (layer === 1) return "#F28E2B"; // cities
-  if (layer === 2) return "#59A14F"; // occupations
-  return "#E15759"; // merchants
+  if (layer === 0) return "#4E79A7"; // states - blue
+  if (layer === 1) return "#F28E2B"; // cities - orange
+  if (layer === 2) return "#59A14F"; // occupations - green
+  return "#E15759"; // merchants - red
 }
-// export { handleDrop };
+
+// Add this debugging/fix function at the bottom of the file
+export function debugSankeyNodes() {
+  const nodes = document.querySelectorAll("[id^='sankey-node-']");
+  console.log(`Found ${nodes.length} sankey nodes:`);
+  nodes.forEach(node => {
+    console.log(node.id, node.getAttribute("fill"));
+  });
+}
+
 export default SankeyFourColumns;

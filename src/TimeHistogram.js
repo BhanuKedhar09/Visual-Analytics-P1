@@ -51,7 +51,7 @@ function TimeHistogram({
     setDayToOccupations,
     setDayToMerchants,
     setCityToDays,
-    setCityToDaysGlobal
+    setCityToDaysGlobal,
   } = useContext(InteractionContext);
 
   /***************************************************
@@ -83,7 +83,7 @@ function TimeHistogram({
     );
     let hist = Array.from(dayRoll, ([date, counts]) => ({ date, ...counts }));
     hist.sort((a, b) => a.date - b.date);
-    
+
     // Fill missing days
     hist = fillMissingDays(hist);
     function fillMissingDays(arr) {
@@ -107,55 +107,47 @@ function TimeHistogram({
     const dtc = {};
     const dto = {};
     const dtm = {};
-    
+
     processed.forEach((d) => {
       const dayNum = +d3.timeDay(d.TransactionDate);
-      
-      // Debug the date conversion
-      console.log("Processing transaction:", {
-        original: d.TransactionDate,
-        dayNum: dayNum,
-        state: d.state_id?.trim(),
-        city: d.Location?.trim()
-      });
-      
+
       // Important: These mappings must be created with proper types
       // Each day maps to a Set of values for proper lookup
-      
+
       if (!dts[dayNum]) dts[dayNum] = new Set();
       if (d.state_id) {
         dts[dayNum].add(d.state_id.trim());
       }
-      
+
       if (!dtc[dayNum]) dtc[dayNum] = new Set();
       if (d.Location) {
         dtc[dayNum].add(d.Location.trim());
       }
-      
+
       if (!dto[dayNum]) dto[dayNum] = new Set();
       if (d.CustomerOccupation) {
         dto[dayNum].add(d.CustomerOccupation.trim());
       }
-      
+
       if (!dtm[dayNum]) dtm[dayNum] = new Set();
       if (d.MerchantID) {
         dtm[dayNum].add(d.MerchantID.trim());
       }
     });
-    
+
     // Debug the mappings
     console.log("Day to Cities mapping:", {
       totalDays: Object.keys(dtc).length,
       sampleDay: Object.entries(dtc)[0],
-      allDays: Object.keys(dtc).slice(0, 5)
+      allDays: Object.keys(dtc).slice(0, 5),
     });
-    
+
     console.log("Day to States mapping:", {
       totalDays: Object.keys(dts).length,
       sampleDay: Object.entries(dts)[0],
-      allDays: Object.keys(dts).slice(0, 5)
+      allDays: Object.keys(dts).slice(0, 5),
     });
-    
+
     // Now let's reverse it to get cityToDays
     const ctd = {};
     for (const [dayNum, cities] of Object.entries(dtc)) {
@@ -164,56 +156,70 @@ function TimeHistogram({
         ctd[city].add(+dayNum);
       }
     }
-    
+
     // Save locally and update the context
     setLocalDayToStates(dts);
     setLocalDayToCities(dtc);
     setLocalDayToOccupations(dto);
     setLocalDayToMerchants(dtm);
-    
-    // Update the context for cross-component access 
-    if (typeof setDayToStates === 'function') {
+
+    // Update the context for cross-component access
+    if (typeof setDayToStates === "function") {
       setDayToStates(dts);
     }
-    
-    if (typeof setDayToCities === 'function') {
+
+    if (typeof setDayToCities === "function") {
       setDayToCities(dtc);
     }
-    
-    if (typeof setDayToOccupations === 'function') {
+
+    if (typeof setDayToOccupations === "function") {
       setDayToOccupations(dto);
     }
-    
-    if (typeof setDayToMerchants === 'function') {
+
+    if (typeof setDayToMerchants === "function") {
       setDayToMerchants(dtm);
     }
-    
+
     // Set cityToDays in context too
-    if (typeof setCityToDays === 'function') {
+    if (typeof setCityToDays === "function") {
       setCityToDays(ctd);
       console.log("CRITICAL DEBUG - TimeHistogram setting cityToDays:", ctd);
-      console.log("CRITICAL DEBUG - Sample city entries:", 
-        Object.entries(ctd).slice(0, 3).map(([city, daySet]) => {
-          return {
-            city,
-            days: Array.from(daySet).slice(0, 5),
-            dayCount: daySet.size,
-            type: typeof daySet,
-            isSet: daySet instanceof Set
-          };
-        })
+      console.log(
+        "CRITICAL DEBUG - Sample city entries:",
+        Object.entries(ctd)
+          .slice(0, 3)
+          .map(([city, daySet]) => {
+            return {
+              city,
+              days: Array.from(daySet).slice(0, 5),
+              dayCount: daySet.size,
+              type: typeof daySet,
+              isSet: daySet instanceof Set,
+            };
+          })
       );
     }
-    
-    if (typeof setCityToDaysGlobal === 'function') {
+
+    if (typeof setCityToDaysGlobal === "function") {
       setCityToDaysGlobal(ctd);
-      console.log("CRITICAL DEBUG - TimeHistogram setting cityToDaysGlobal:", ctd);
+      console.log(
+        "CRITICAL DEBUG - TimeHistogram setting cityToDaysGlobal:",
+        ctd
+      );
     }
 
     // Draw the stacked bars
     drawHistogram(hist);
-  }, [data, setDayToStates, setDayToCities, setDayToOccupations, setDayToMerchants, setCityToDays, setCityToDaysGlobal]);
-  
+  }, [
+    data,
+    setDayToStates,
+    setDayToCities,
+    setDayToOccupations,
+    setDayToMerchants,
+    setCityToDays,
+    setCityToDaysGlobal,
+  ]);
+
   useEffect(() => {
     if (!barsRef.current || !histData.length) return;
 
@@ -241,7 +247,8 @@ function TimeHistogram({
           localDayToCities[dayNum]?.has(timeHighlightedCity)
         )
           return "red";
-        if (hoveredCity && localDayToCities[dayNum]?.has(hoveredCity)) return "red";
+        if (hoveredCity && localDayToCities[dayNum]?.has(hoveredCity))
+          return "red";
         if (hoveredSankeyLayer !== null && hoveredSankeyName) {
           if (
             hoveredSankeyLayer === 0 &&
@@ -272,11 +279,14 @@ function TimeHistogram({
         }
         for (const sankeyNodeKey of selectedSankeyNodes) {
           const [layer, name] = sankeyNodeKey.split("||");
-          if (layer === "0" && localDayToStates[dayNum]?.has(name)) return "blue";
-          if (layer === "1" && localDayToCities[dayNum]?.has(name)) return "blue";
+          if (layer === "0" && localDayToStates[dayNum]?.has(name))
+            return "blue";
+          if (layer === "1" && localDayToCities[dayNum]?.has(name))
+            return "blue";
           if (layer === "2" && localDayToOccupations[dayNum]?.has(name))
             return "blue";
-          if (layer === "3" && localDayToMerchants[dayNum]?.has(name)) return "blue";
+          if (layer === "3" && localDayToMerchants[dayNum]?.has(name))
+            return "blue";
         }
         return defColor;
       })
@@ -355,7 +365,7 @@ function TimeHistogram({
     sankeyHighlightedCity,
     setSankeyHighlightedCity,
   ]);
-  
+
   function drawHistogram(hist) {
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
@@ -402,24 +412,14 @@ function TimeHistogram({
       .domain(["Credit", "Debit"])
       .range(["#4E79A7", "#F28E2B"]);
 
+    // ... inside your drawHistogram function, where you define rectSel:
     const rectSel = layer
       .selectAll("rect")
       .data((d) => d.map((point, index) => ({ point, index, key: d.key })))
       .enter()
       .append("rect")
-      .attr("class", "time-histogram-bar")
-      .attr("id", function(d) {
-        // Create ID with date
-        const dateStr = d3.timeFormat("%Y-%m-%d")(hist[d.index].date);
-        const id = "time-bar-" + dateStr;
-        
-        // Add multiple data attributes to help with selection
-        const el = d3.select(this);
-        el.attr("data-date", dateStr);
-        el.attr("data-day", dateStr);
-        el.attr("data-timestamp", +hist[d.index].date);
-        
-        return id;
+      .attr("id", function (d) {
+        return "time-bar-" + d3.timeFormat("%Y-%m-%d")(hist[d.index].date);
       })
       .attr(
         "x",
@@ -431,57 +431,41 @@ function TimeHistogram({
       .attr("fill", (d) => colorScale(d.key))
       .attr("stroke", "#fff")
       .attr("stroke-width", 0.5)
-      // ephemeral day hover => set hoveredDay
+      // Ephemeral day hover => set hoveredDay and update the time-highlighted cities.
       .on("mouseover", (evt, d) => {
         const day = hist[d.index].date;
-        const dayNum = +d3.timeDay(day);
-        console.log("=== Time Bar Hover Debug ===");
-        console.log("Hovered Date:", d3.timeFormat("%Y-%m-%d")(day));
-        console.log("Day Number:", dayNum);
-        console.log("Transaction Counts:", {
-          Credit: hist[d.index].Credit,
-          Debit: hist[d.index].Debit
-        });
-        
-        // Log cities for this day
-        console.log("Cities for this day:", {
-          fromLocalState: localDayToCities[dayNum] ? Array.from(localDayToCities[dayNum]) : [],
-          fromContext: dayToCities[dayNum] ? Array.from(dayToCities[dayNum]) : []
-        });
-        
-        // Log states for this day
-        console.log("States for this day:", {
-          fromLocalState: localDayToStates[dayNum] ? Array.from(localDayToStates[dayNum]) : [],
-          fromContext: dayToStates[dayNum] ? Array.from(dayToStates[dayNum]) : []
-        });
-        
-        console.log("Setting hoveredDay to:", day);
         setHoveredDay(day);
-        
-        // Show tooltip
+        // Determine the day number (ignore time)
+        const dayNum = +d3.timeDay(day);
+        // Use the dayToCities mapping (assumed available via InteractionContext)
+        const citiesForDay = dayToCities[dayNum] ? Array.from(dayToCities[dayNum]) : [];
+        // If exactly one city is involved, set that as the time highlight.
+        if (citiesForDay.length === 1) {
+            setTimeHighlightedCity(citiesForDay[0]);
+        } else {
+            setTimeHighlightedCity(null);
+        }
+        // (Optionally update tooltip here as you already do.)
         d3.select("body")
           .select(".tooltip")
           .html(
-            `
-            <strong>${d3.timeFormat("%b %d, %Y")(day)}</strong><br/>
-            Credit: ${hist[d.index].Credit}<br/>
-            Debit: ${hist[d.index].Debit}
-            `
+            `<strong>${d3.timeFormat("%b %d, %Y")(day)}</strong><br/>
+             Credit: ${hist[d.index].Credit}<br/>
+             Debit: ${hist[d.index].Debit}`
           )
           .style("opacity", 1)
           .style("left", (evt.pageX + 10) + "px")
           .style("top", (evt.pageY + 10) + "px");
-      })
-      .on("mousemove", (evt) => {
-        d3.select("body")
-          .select(".tooltip")
-          .style("left", (evt.pageX + 10) + "px")
-          .style("top", (evt.pageY + 10) + "px");
-      })
+    })
+    .on("mousemove", (evt) => {
+      d3.select("body")
+        .select(".tooltip")
+        .style("left", (evt.pageX + 10) + "px")
+        .style("top", (evt.pageY + 10) + "px");
+  })
       .on("mouseout", () => {
-        console.log("=== Time Bar Mouseout Debug ===");
-        console.log("Clearing hoveredDay");
         setHoveredDay(null);
+        setTimeHighlightedCity(null);
         d3.select("body").select(".tooltip").style("opacity", 0);
       })
       // persistent day selection => toggle in selectedDays

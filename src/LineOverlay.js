@@ -1,6 +1,16 @@
 import React, { useRef, useEffect, useState, useContext } from "react";
 import * as d3 from "d3";
 import { InteractionContext, LinkDisplayMode } from "./InteractionContext";
+import { DataContext } from "./DataLoader";
+
+// Helper function to find the state for a given city
+const findStateForCity = (cityName, data) => {
+  if (!data || !cityName) return null;
+  
+  // Find the first record with this city and return its state
+  const cityRecord = data.find(record => record.Location === cityName);
+  return cityRecord ? cityRecord.state_id : null;
+};
 
 const LineOverlay = () => {
   const { 
@@ -12,11 +22,15 @@ const LineOverlay = () => {
     cityToDaysGlobal,
     localDayToCities,
     linkDisplayMode,
-    setSankeyHighlightedCity
+    setSankeyHighlightedCity,
+    setSankeyHighlightedState
   } = useContext(InteractionContext);
   
   const [lines, setLines] = useState([]);
   const svgRef = useRef(null);
+
+  // Add DataContext to get access to data for city-state lookups
+  const { data } = useContext(DataContext);
 
   // This effect runs whenever the hover state or link mode changes
   useEffect(() => {
@@ -93,33 +107,27 @@ const LineOverlay = () => {
             to: nodeCenter,
             type: "city-to-sankey"
           });
-        } else {
-          // If we can't find the city node directly, try to find its state node
-          // This is a fallback in case the city node doesn't exist or has a different ID pattern
-          // First we need to look up the state for this city
-          let cityState = null;
           
-          // Find the first day with this city to get its state
-          for (const [dayNum, cities] of Object.entries(dayToCities)) {
-            if (cities && cities.has(hoveredCity)) {
-              // Try to get the state from the data
-              const stateNodeId = `sankey-node-state-${cityState}`;
-              const stateNodeEl = document.getElementById(stateNodeId);
+          // FIXED: Find the state for this city and highlight the state node as well
+          // This requires looking up which state this city belongs to
+          const cityState = findStateForCity(hoveredCity, data);
+          if (cityState) {
+            const stateNodeEl = document.getElementById(`sankey-node-${cityState}`);
+            if (stateNodeEl) {
+              const stateRect = stateNodeEl.getBoundingClientRect();
+              const stateCenter = {
+                x: stateRect.left + stateRect.width / 2,
+                y: stateRect.top + stateRect.height / 2
+              };
               
-              if (stateNodeEl) {
-                const nodeRect = stateNodeEl.getBoundingClientRect();
-                const nodeCenter = {
-                  x: nodeRect.left + nodeRect.width / 2,
-                  y: nodeRect.top + nodeRect.height / 2
-                };
-                
-                newLines.push({
-                  from: sourceCenter,
-                  to: nodeCenter,
-                  type: "city-to-state-sankey"
-                });
-                break;
-              }
+              newLines.push({
+                from: sourceCenter,
+                to: stateCenter,
+                type: "city-to-state-sankey"
+              });
+              
+              // Also highlight the state node in the Sankey diagram
+              setSankeyHighlightedState(cityState);
             }
           }
         }
@@ -149,20 +157,15 @@ const LineOverlay = () => {
           y: sourceRect.top + sourceRect.height / 2
         };
         
-        // Get the cities associated with this day from dayToCities
-        const cities = dayToCities[dayNum];
-        
-        if (cities) {
-          console.log("Found cities:", Array.from(cities));
-          // 1. Connect to cities on the map
-          cities.forEach(city => {
-            const cityEl = document.getElementById(`geo-circle-${city}`);
-            if (cityEl) {
-              console.log("Creating connection to city:", city);
-              const cityRect = cityEl.getBoundingClientRect();
+        // Connect to cities for this day
+        if (dayToCities[dayNum]) {
+          dayToCities[dayNum].forEach(city => {
+            const targetEl = document.getElementById(`geo-circle-${city}`);
+            if (targetEl) {
+              const targetRect = targetEl.getBoundingClientRect();
               const cityCenter = {
-                x: cityRect.left + cityRect.width / 2,
-                y: cityRect.top + cityRect.height / 2
+                x: targetRect.left + targetRect.width / 2,
+                y: targetRect.top + targetRect.height / 2
               };
               
               newLines.push({
@@ -171,42 +174,30 @@ const LineOverlay = () => {
                 type: "time-to-city"
               });
             }
-          });
-          
-          // 2. Connect to Sankey nodes for these cities
-          const cityNodeId = `sankey-node-${cities[0]}`;
-          const cityNodeEl = document.getElementById(cityNodeId);
-          if (cityNodeEl) {
-            const nodeRect = cityNodeEl.getBoundingClientRect();
-            const nodeCenter = {
-              x: nodeRect.left + nodeRect.width / 2,
-              y: nodeRect.top + nodeRect.height / 2
-            };
             
-            newLines.push({
-              from: sourceCenter,
-              to: nodeCenter,
-              type: "time-to-sankey"
-            });
-          }
-          
-          // 3. Get unique states for this day
-          const states = new Set();
-          cities.forEach(city => {
-            // Try to determine the state for each city
-            // This is a simplified approach - in a real application, you might have a more direct way
-            // to look up the state for a city
-            Object.entries(dayToStates).forEach(([day, stateSet]) => {
-              if (day === dayNum.toString() && stateSet) {
-                stateSet.forEach(state => states.add(state));
-              }
-            });
+            // FIXED: Also connect to corresponding Sankey city nodes
+            const sankeyNodeEl = document.getElementById(`sankey-node-${city}`);
+            if (sankeyNodeEl) {
+              const nodeRect = sankeyNodeEl.getBoundingClientRect();
+              const nodeCenter = {
+                x: nodeRect.left + nodeRect.width / 2,
+                y: nodeRect.top + nodeRect.height / 2
+              };
+              
+              newLines.push({
+                from: sourceCenter,
+                to: nodeCenter,
+                type: "time-to-sankey-city"
+              });
+            }
           });
-          
-          // Connect to state nodes in Sankey
-          states.forEach(state => {
-            const stateNodeId = `sankey-node-${state}`;
-            const stateNodeEl = document.getElementById(stateNodeId);
+        }
+        
+        // Connect to states for this day
+        if (dayToStates[dayNum]) {
+          dayToStates[dayNum].forEach(state => {
+            // FIXED: Connect to Sankey state nodes
+            const stateNodeEl = document.getElementById(`sankey-node-${state}`);
             if (stateNodeEl) {
               const nodeRect = stateNodeEl.getBoundingClientRect();
               const nodeCenter = {
@@ -228,8 +219,17 @@ const LineOverlay = () => {
     // CASE 3: Handle Sankey hover
     if (hoveredSankey && linkDisplayMode === LinkDisplayMode.SHOW_LINKS) {
       // Find the source element (Sankey node)
-      const sourceEl = document.getElementById(`sankey-node-${hoveredSankey.name}`);
+      const sourceNodeType = hoveredSankey.layer === 0 ? "state" : 
+                           hoveredSankey.layer === 1 ? "city" :
+                           hoveredSankey.layer === 2 ? "occupation" : "merchant";
+      
+      // Use the new ID format
+      const nodeId = `sankey-node-${sourceNodeType}-${hoveredSankey.name.replace(/\s+/g, '-')}`;
+      console.log(`Looking for Sankey node with ID: ${nodeId}`);
+      
+      const sourceEl = document.getElementById(nodeId);
       if (sourceEl) {
+        console.log(`Found Sankey node: ${nodeId}`);
         const sourceRect = sourceEl.getBoundingClientRect();
         const sourceCenter = {
           x: sourceRect.left + sourceRect.width / 2,
@@ -381,7 +381,7 @@ const LineOverlay = () => {
     
     console.log(`Setting ${newLines.length} connection lines`);
     setLines(newLines);
-  }, [hoveredSankey, hoveredCity, hoveredDay, dayToStates, dayToCities, localDayToCities, linkDisplayMode, setSankeyHighlightedCity]);
+  }, [hoveredSankey, hoveredCity, hoveredDay, dayToStates, dayToCities, localDayToCities, linkDisplayMode, setSankeyHighlightedCity, setSankeyHighlightedState]);
 
   return (
     <div 

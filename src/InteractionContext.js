@@ -23,6 +23,15 @@ export function InteractionProvider({ children }) {
   const [sankeyHighlightedState, setSankeyHighlightedState] = useState(null);
   const [sankeyHighlightedCity, setSankeyHighlightedCity] = useState(null);
 
+  // Debug - track changes to highlighted elements
+  useEffect(() => {
+    console.log("InteractionContext: sankeyHighlightedCity changed to", sankeyHighlightedCity);
+  }, [sankeyHighlightedCity]);
+
+  useEffect(() => {
+    console.log("InteractionContext: sankeyHighlightedState changed to", sankeyHighlightedState);
+  }, [sankeyHighlightedState]);
+
   // NEW: Global mapping of city → Set of day numbers (and its setter)
   const [cityToDays, setCityToDays] = useState({});
 

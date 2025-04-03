@@ -28,6 +28,7 @@ function GeographicHeatmap({
     selectedCities,
     setSelectedCities,
     hoveredSankey,
+    setHoveredSankey,
     selectedSankeyNodes,
     highlightedState,
     setHighlightedState,
@@ -135,6 +136,19 @@ function GeographicHeatmap({
           .attr("fill", (d) => {
             // default fill color
             let fillColor = "orange";
+            if (hoveredSankey) {
+              if (hoveredSankey.layer === 0 && d.state === hoveredSankey.name) {
+                fillColor = "red";
+              } else if (hoveredSankey.layer === 1 && d.city === hoveredSankey.name) {
+                fillColor = "red";
+              }
+            }
+            // Then check for other selected/highlighted conditions:
+            if (sankeyHighlightedState && d.state === sankeyHighlightedState) fillColor = "red";
+            if (sankeyHighlightedCity && d.city === sankeyHighlightedCity) fillColor = "red";
+            if (highlightedState && d.state === highlightedState) fillColor = "red";
+            if (highlightedCity && d.city === highlightedCity) fillColor = "red";
+            if (selectedCities.has(d.city)) fillColor = "blue";
             if (sankeyHighlightedState && d.state === sankeyHighlightedState)
               return "red";
             if (sankeyHighlightedCity && d.city === sankeyHighlightedCity)
@@ -252,9 +266,6 @@ function GeographicHeatmap({
             return 1;
           })
           .on("mouseover", (evt, d) => {
-            // Set hover state
-            setHoveredCity(d.city);
-            
             // Show tooltip
             d3.select("body")
               .select(".tooltip")
@@ -268,6 +279,28 @@ function GeographicHeatmap({
               .style("opacity", 1)
               .style("left", (evt.pageX + 10) + "px")
               .style("top", (evt.pageY + 10) + "px");
+            console.log("GeoMap Circle Mouseover:", d);
+            // Set local hovered city
+            setHoveredCity(d.city);
+            // Also update the sankey hover info.
+            // Compute connectedDays from cityToDaysGlobal for this city
+            let connectedDays = [];
+            const daySet = cityToDaysGlobal[d.city];
+            if (daySet) {
+              daySet.forEach(dayNum => {
+                // Format day to a string (e.g., "2023-04-11")
+                connectedDays.push(d3.timeFormat("%Y-%m-%d")(new Date(dayNum)));
+              });
+            }
+            // Create a hoveredSankey object for a city node.
+            setHoveredSankey({
+              layer: 1,
+              name: d.city,
+              connectedCities: [d.city],
+              connectedDays: Array.from(new Set(connectedDays))
+            });
+            // Also set the Sankey highlighted city (and clear state highlight)
+            setSankeyHighlightedCity(d.city);
           })
           .on("mousemove", (evt) => {
             // Update tooltip position
@@ -277,9 +310,11 @@ function GeographicHeatmap({
               .style("top", (evt.pageY + 10) + "px");
           })
           .on("mouseout", () => {
-            // Clear hover state
+            console.log("GeoMap Circle Mouseout: Clearing highlights");
+            // Clear both local hover and sankey hover/highlight
             setHoveredCity(null);
-            
+            setHoveredSankey(null);
+            setSankeyHighlightedCity(null);
             // Hide tooltip
             d3.select("body")
               .select(".tooltip")
@@ -317,7 +352,9 @@ function GeographicHeatmap({
           selectedCities,
           selectedSankeyNodes,
           cityToDays,
-          setCityToDays
+          setCityToDays,
+          setHoveredSankey,
+
         });
         enableCopyAndDrag(circleSel, handleDrop);
         circlesRef.current = circleSel;

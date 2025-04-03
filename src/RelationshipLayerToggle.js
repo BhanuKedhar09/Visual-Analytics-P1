@@ -5,6 +5,7 @@ function RelationshipLayerToggle({ popupsVisible = true }) {
   const [popups, setPopups] = useState([]);
   const [nextId, setNextId] = useState(1);
   const [savedPopups, setSavedPopups] = useState([]);
+  const [autoRestoreEnabled, setAutoRestoreEnabled] = useState(false); // Default to not auto-restore
   
   // Create a new popup
   const createNewPopup = () => {
@@ -58,29 +59,57 @@ function RelationshipLayerToggle({ popupsVisible = true }) {
     ));
   };
   
+  // Clear all popups and reset counter
+  const clearAllPopups = () => {
+    setPopups([]);
+    setSavedPopups([]);
+    setNextId(1);
+    localStorage.removeItem('visualAnalytics.popups');
+  };
+  
   // Add useEffect to save popup states to localStorage
   useEffect(() => {
     if (popups.length > 0 || savedPopups.length > 0) {
       localStorage.setItem('visualAnalytics.popups', JSON.stringify({
         active: popups,
         saved: savedPopups,
-        nextId
+        nextId,
+        autoRestoreEnabled
       }));
+    } else {
+      // If no popups, clear localStorage
+      localStorage.removeItem('visualAnalytics.popups');
     }
-  }, [popups, savedPopups, nextId]);
+  }, [popups, savedPopups, nextId, autoRestoreEnabled]);
 
-  // Load saved state on component mount
+  // Load saved state on component mount - only if autoRestoreEnabled
   useEffect(() => {
     try {
       const savedState = localStorage.getItem('visualAnalytics.popups');
       if (savedState) {
-        const { active, saved, nextId: nextIdSaved } = JSON.parse(savedState);
-        if (active && active.length) setPopups(active);
-        if (saved && saved.length) setSavedPopups(saved);
-        if (nextIdSaved) setNextId(nextIdSaved);
+        const { active, saved, nextId: nextIdSaved, autoRestoreEnabled: savedAutoRestore } = JSON.parse(savedState);
+        
+        // Set autoRestoreEnabled from saved state
+        if (savedAutoRestore !== undefined) {
+          setAutoRestoreEnabled(savedAutoRestore);
+        }
+        
+        // Only restore popups if autoRestoreEnabled was true
+        if (savedAutoRestore) {
+          if (saved && saved.length) setSavedPopups(saved);
+          if (active && active.length) setPopups(active);
+          if (nextIdSaved) setNextId(nextIdSaved);
+        } else {
+          // Otherwise just restore the counter to continue numbering
+          if (nextIdSaved) setNextId(nextIdSaved);
+        }
       }
     } catch (e) {
       console.error('Error loading saved popup state:', e);
+      // Reset to defaults on error
+      setPopups([]);
+      setSavedPopups([]);
+      setNextId(1);
     }
   }, []);
   
@@ -189,33 +218,79 @@ function RelationshipLayerToggle({ popupsVisible = true }) {
         </div>
       )}
 
-      {/* Toggle button - always visible */}
-      <button 
-        className="layer-toggle"
-        onClick={createNewPopup}
-        style={{
-          position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          width: '40px',
-          height: '50px',
-          borderRadius: '5px',
-          backgroundColor: '#444',
-          color: 'white',
+      {/* Control buttons */}
+      <div style={{
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: '10px',
+        zIndex: 99999
+      }}>
+        {/* Auto-restore toggle */}
+        <div style={{
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          padding: '5px',
+          borderRadius: '4px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
-          border: 'none',
-          cursor: 'pointer',
-          zIndex: 99999,
-          fontSize: '18px',
-          flexDirection: 'column'
+          cursor: 'pointer'
         }}
-      >
-        <div style={{ marginBottom: '2px', width: '20px', height: '20px', border: '1px solid white', borderRadius: '2px' }}></div>
-        <span style={{ fontSize: '14px' }}>+</span>
-      </button>
+        onClick={() => setAutoRestoreEnabled(!autoRestoreEnabled)}
+        >
+          <div style={{
+            width: '14px',
+            height: '14px',
+            border: '1px solid white',
+            borderRadius: '2px',
+            marginRight: '5px',
+            backgroundColor: autoRestoreEnabled ? 'white' : 'transparent'
+          }}></div>
+          <span style={{ color: 'white', fontSize: '12px' }}>Auto-restore on reload</span>
+        </div>
+        
+        {/* Reset button */}
+        <button 
+          onClick={clearAllPopups}
+          style={{
+            backgroundColor: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            padding: '3px 8px',
+            fontSize: '12px',
+            cursor: 'pointer'
+          }}
+        >
+          Reset All Popups
+        </button>
+        
+        {/* Toggle button - always visible */}
+        <button 
+          className="layer-toggle"
+          onClick={createNewPopup}
+          style={{
+            width: '40px',
+            height: '50px',
+            borderRadius: '5px',
+            backgroundColor: '#444',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '18px',
+            flexDirection: 'column'
+          }}
+        >
+          <div style={{ marginBottom: '2px', width: '20px', height: '20px', border: '1px solid white', borderRadius: '2px' }}></div>
+          <span style={{ fontSize: '14px' }}>+</span>
+        </button>
+      </div>
       
       {/* Only render active popups if popupsVisible is true */}
       {popupsVisible && popups.map(popup => (
