@@ -12,8 +12,8 @@ function RelationshipLayerToggle({ popupsVisible = true }) {
     const newPopup = {
       id: nextId,
       position: { 
-        x: window.innerWidth - 520 - (popups.length * 20), 
-        y: 80 + (popups.length * 20) 
+        x: Math.max(100, window.innerWidth/2 - 250), 
+        y: Math.max(100, window.innerHeight/2 - 200)
       },
       aiInsights: null, // Store AI results here
       selections: {} // Store selections that generated these insights
@@ -27,6 +27,9 @@ function RelationshipLayerToggle({ popupsVisible = true }) {
   const handleSave = (popupId) => {
     const popupToSave = popups.find(p => p.id === popupId);
     if (popupToSave) {
+      console.log(`Saving popup ${popupId} with initialSelections:`, 
+        popupToSave.initialSelections ? JSON.stringify(popupToSave.initialSelections) : "undefined");
+      
       // Remove from active popups
       setPopups(popups.filter(p => p.id !== popupId));
       // Add to saved popups
@@ -52,9 +55,16 @@ function RelationshipLayerToggle({ popupsVisible = true }) {
   
   // Add handlers to update the popup state
   const updatePopupData = (popupId, data) => {
+    console.log(`Updating popup ${popupId} with data:`, JSON.stringify(data));
+    
     setPopups(popups.map(popup => 
       popup.id === popupId 
-        ? { ...popup, ...data } 
+        ? { 
+            ...popup, 
+            ...data,
+            // Ensure initialSelections is preserved
+            initialSelections: popup.initialSelections
+          } 
         : popup
     ));
   };
@@ -116,30 +126,34 @@ function RelationshipLayerToggle({ popupsVisible = true }) {
   // Add a method to create a popup with pre-selected data
   const createPopupWithData = (elementData) => {
     // Determine the element type and create appropriate data
-    let selectedData = {};
+    console.log("createPopupWithData called with:", JSON.stringify(elementData));
+    
+    let initialSelections = {};
     
     if (elementData.type === 'state' || elementData.type === 'city' || 
         elementData.type === 'occupation' || elementData.type === 'merchant') {
-      selectedData.selectedSankey = {
+      initialSelections.selectedSankey = {
         name: elementData.value,
         layer: elementData.type === 'state' ? 0 : 
                elementData.type === 'city' ? 1 :
                elementData.type === 'occupation' ? 2 : 3
       };
     } else if (elementData.type === 'time') {
-      selectedData.selectedDay = new Date(elementData.value);
+      initialSelections.selectedDay = new Date(elementData.value);
     } else if (elementData.type === 'geo-circle') {
-      selectedData.selectedCircle = elementData.value;
+      initialSelections.selectedCircle = elementData.value;
     }
     
-    // Create a new popup with this selection data
+    console.log("Creating popup with initialSelections:", JSON.stringify(initialSelections));
+    
+    // Create a new popup with this selection data - positioned in center
     const newPopup = {
       id: nextId,
       position: { 
-        x: window.innerWidth - 520 - (popups.length * 20), 
-        y: 80 + (popups.length * 20) 
+        x: Math.max(100, window.innerWidth/2 - 250), 
+        y: Math.max(100, window.innerHeight/2 - 200)
       },
-      initialSelections: selectedData
+      initialSelections: initialSelections  // Use initialSelections instead of selectedData
     };
     
     setPopups([...popups, newPopup]);
@@ -157,154 +171,60 @@ function RelationshipLayerToggle({ popupsVisible = true }) {
   
   return (
     <>
-      {/* Saved popups collage - always visible */}
-      {savedPopups.length > 0 && (
+      <div className="collage-controls" style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
+        {/* Saved popup thumbnails */}
         <div 
           className="saved-popups-collage"
           style={{
-            position: 'fixed',
-            bottom: '80px',
-            right: '20px',
+            marginBottom: '10px',
             display: 'flex',
             flexWrap: 'wrap',
-            justifyContent: 'flex-end',
-            width: '300px',
-            zIndex: 99999
+            gap: '5px',
+            maxWidth: '200px',
+            justifyContent: 'flex-end'
           }}
         >
-          {savedPopups.map((popup, index) => (
+          {savedPopups.map(popup => (
             <div 
               key={popup.id}
-              className="saved-thumbnail"
               onClick={() => restoreSavedPopup(popup.id)}
               style={{
-                width: '100px',
-                height: '80px',
-                backgroundColor: 'white',
-                boxShadow: '0 0 5px rgba(0,0,0,0.2)',
+                width: '40px',
+                height: '40px',
+                backgroundColor: '#f0f0f0',
+                border: '1px solid #ccc',
                 borderRadius: '4px',
-                overflow: 'hidden',
-                cursor: 'pointer',
-                border: '2px solid #007bff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '11px',
-                padding: '5px',
-                textAlign: 'center',
-                margin: '5px',
-                transform: `rotate(${Math.random() * 6 - 3}deg)`, // Slight random rotation for collage effect
-                zIndex: 99999 + index // Ensure proper stacking
+                fontSize: '10px',
+                cursor: 'pointer',
+                color: '#666'
               }}
             >
-              <div>
-                <div style={{ 
-                  width: '90px', 
-                  height: '50px', 
-                  backgroundColor: '#f0f0f0', 
-                  marginBottom: '4px',
-                  borderRadius: '3px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '8px'
-                }}>
-                  Graph #{popup.id}
-                </div>
-                <small>Click to expand</small>
-              </div>
+              #{popup.id}
             </div>
           ))}
         </div>
-      )}
-
-      {/* Control buttons */}
-      <div style={{
-        position: 'fixed',
-        bottom: '20px',
-        right: '20px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-end',
-        gap: '10px',
-        zIndex: 99999
-      }}>
-        {/* Auto-restore toggle */}
-        <div style={{
-          backgroundColor: 'rgba(0,0,0,0.6)',
-          padding: '5px',
-          borderRadius: '4px',
-          display: 'flex',
-          alignItems: 'center',
-          cursor: 'pointer'
-        }}
-        onClick={() => setAutoRestoreEnabled(!autoRestoreEnabled)}
-        >
-          <div style={{
-            width: '14px',
-            height: '14px',
-            border: '1px solid white',
-            borderRadius: '2px',
-            marginRight: '5px',
-            backgroundColor: autoRestoreEnabled ? 'white' : 'transparent'
-          }}></div>
-          <span style={{ color: 'white', fontSize: '12px' }}>Auto-restore on reload</span>
-        </div>
-        
-        {/* Reset button */}
-        <button 
-          onClick={clearAllPopups}
-          style={{
-            backgroundColor: '#dc3545',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            padding: '3px 8px',
-            fontSize: '12px',
-            cursor: 'pointer'
-          }}
-        >
-          Reset All Popups
-        </button>
-        
-        {/* Toggle button - always visible */}
-        <button 
-          className="layer-toggle"
-          onClick={createNewPopup}
-          style={{
-            width: '40px',
-            height: '50px',
-            borderRadius: '5px',
-            backgroundColor: '#444',
-            color: 'white',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '18px',
-            flexDirection: 'column'
-          }}
-        >
-          <div style={{ marginBottom: '2px', width: '20px', height: '20px', border: '1px solid white', borderRadius: '2px' }}></div>
-          <span style={{ fontSize: '14px' }}>+</span>
-        </button>
       </div>
       
       {/* Only render active popups if popupsVisible is true */}
-      {popupsVisible && popups.map(popup => (
-        <RelationshipPopupLayer 
-          key={popup.id}
-          id={popup.id}
-          initialPosition={popup.position}
-          initialInsights={popup.aiInsights}
-          initialSelections={popup.selections}
-          onDataUpdate={(data) => updatePopupData(popup.id, data)}
-          onSave={() => handleSave(popup.id)} 
-          onClose={() => handleClose(popup.id)} 
-        />
-      ))}
+      {popupsVisible && popups.map(popup => {
+        console.log(`Rendering popup ${popup.id} with initialSelections:`, popup.initialSelections ? JSON.stringify(popup.initialSelections) : "undefined");
+        
+        return (
+          <RelationshipPopupLayer 
+            key={popup.id}
+            id={popup.id}
+            initialPosition={popup.position}
+            initialInsights={popup.aiInsights}
+            initialSelections={popup.initialSelections || {}}
+            onDataUpdate={(data) => updatePopupData(popup.id, data)}
+            onSave={() => handleSave(popup.id)} 
+            onClose={() => handleClose(popup.id)} 
+          />
+        );
+      })}
     </>
   );
 }

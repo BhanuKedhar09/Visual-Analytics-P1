@@ -268,12 +268,50 @@ export function enableCopyAndDrag(selection, onDragEndCallback = null) {
         
         // Get the data from the element
         const datum = d3.select(this).datum();
+        console.log("Right-click menu: Creating popup with datum:", datum);
+        
+        // Create a popup data object with the right format
+        let popupData = {
+          type: datum.type || 'unknown',
+          value: datum.name || datum.id || 'unknown'
+        };
+        
+        // For Sankey nodes, ensure we have the right format
+        if (datum.type === 'sankeyNode') {
+          popupData = {
+            type: datum.layer === 0 ? 'state' : 
+                 datum.layer === 1 ? 'city' : 
+                 datum.layer === 2 ? 'occupation' : 'merchant',
+            value: datum.name
+          };
+        }
+        // For geo circles, use geo-circle type
+        else if (datum.type === 'geoCircle') {
+          popupData = {
+            type: 'geo-circle',
+            value: datum.city || datum.name
+          };
+        }
+        // For time bars, use time type
+        else if (datum.type === 'timeBar') {
+          popupData = {
+            type: 'time',
+            value: datum.date || datum.day
+          };
+          console.log("Creating popup for timeBar:", {
+            date: datum.date,
+            dateStr: datum.dateStr,
+            day: datum.day,
+            Credit: datum.Credit,
+            Debit: datum.Debit
+          });
+        }
+        
+        console.log("Formatted popup data:", popupData);
         
         // Create a new popup with this data
-        // This requires access to the createNewPopup function
-        // Either through a global function or through a callback
         if (window.createRelationshipPopup) {
-          window.createRelationshipPopup(datum);
+          window.createRelationshipPopup(popupData);
         }
       });
 

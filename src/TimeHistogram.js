@@ -3,6 +3,7 @@ import React, { useRef, useEffect, useContext, useState } from "react";
 import * as d3 from "d3";
 import { DataContext } from "./DataLoader";
 import { InteractionContext } from "./InteractionContext";
+import { enableCopyAndDrag } from "./dragDropHelper";
 
 function TimeHistogram({
   id = "",
@@ -507,7 +508,14 @@ function TimeHistogram({
         });
       });
     rectSel.each(function (d) {
-      d.type = "timeBar";
+      const dataPoint = hist[d.index];
+      const datum = d3.select(this).datum();
+      datum.type = "timeBar";
+      datum.date = dataPoint.date;
+      datum.dateStr = d3.timeFormat("%b %d, %Y")(dataPoint.date);
+      datum.day = +d3.timeDay(dataPoint.date);
+      datum.Credit = dataPoint.Credit;
+      datum.Debit = dataPoint.Debit;
     });
     barsRef.current = rectSel;
     // Ensure tooltip exists
@@ -537,6 +545,9 @@ function TimeHistogram({
       });
     zoomRef.current = zoomBehavior;
     svg.call(zoomBehavior);
+
+    // Apply enableCopyAndDrag to the time bars
+    enableCopyAndDrag(rectSel);
   }
 
   function computeBarWidth(arr, scaleFn) {

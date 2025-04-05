@@ -15,6 +15,8 @@ function RelationshipPopupLayer({
   onSave, 
   onClose 
 }) {
+  console.log("RelationshipPopupLayer MOUNT with initialSelections:", JSON.stringify(initialSelections));
+  
   const [position, setPosition] = useState(initialPosition || { x: window.innerWidth - 520, y: 80 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -23,6 +25,17 @@ function RelationshipPopupLayer({
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
   const [manualAnalysisRequested, setManualAnalysisRequested] = useState(false);
   const [graphData, setGraphData] = useState(null);
+  
+  // Add state for selected elements - MOVED UP HERE before useEffects
+  const [selectedDay, setSelectedDay] = useState(initialSelections.selectedDay || null);
+  const [selectedSankey, setSelectedSankey] = useState(initialSelections.selectedSankey || null);
+  const [selectedCircle, setSelectedCircle] = useState(initialSelections.selectedCircle || null);
+  
+  console.log("Initial state:", { 
+    selectedDay: selectedDay ? (selectedDay instanceof Date ? selectedDay.toISOString() : selectedDay) : null,
+    selectedSankey: selectedSankey ? JSON.stringify(selectedSankey) : null,
+    selectedCircle: selectedCircle
+  });
   
   // Get relevant context data
   const { hoveredDay, hoveredSankey, hoveredCircle, dayToCities: contextDayToCities } = useContext(InteractionContext);
@@ -144,65 +157,228 @@ function RelationshipPopupLayer({
     };
   }, [isDragging, isResizing]);
   
-  // Replace the automatic useEffect with a manual trigger
+  // Use effect to trigger initial graph generation when component mounts with initialSelections
   useEffect(() => {
-    if (!manualAnalysisRequested) return;
-    
-    // Reset flag
-    setManualAnalysisRequested(false);
-    
-    // Same analysis code as before...
-    setIsLoadingInsights(true);
-    
-    // Prepare the data for AI analysis
-    const analysisData = {
-      selections: {
-        day: hoveredDay ? new Date(hoveredDay).toLocaleDateString() : null,
-        sankey: hoveredSankey ? hoveredSankey.name : null,
-        city: hoveredCircle ? hoveredCircle : null
-      },
-      data: getRelevantData(data, hoveredDay, hoveredSankey, hoveredCircle)
-    };
-    
-    // Call the AI service
-    generateInsights(analysisData)
-      .then(results => {
-        setAiInsights(results);
-        setIsLoadingInsights(false);
-      })
-      .catch(error => {
-        console.error('Error generating insights:', error);
-        setAiInsights({ error: 'Failed to generate insights. Please try again.' });
-        setIsLoadingInsights(false);
-      });
-  }, [manualAnalysisRequested, hoveredDay, hoveredSankey, hoveredCircle, data]);
+    console.log("Initial graph generation effect running with initialSelections:", 
+      JSON.stringify(initialSelections),
+      "selectedDay:", selectedDay, 
+      "selectedSankey:", selectedSankey, 
+      "selectedCircle:", selectedCircle);
+      
+    // If we have initial selections, force a graph update
+    if (Object.keys(initialSelections).length > 0) {
+      console.log("Found initialSelections, generating graph");
+      
+      // Create graph data directly instead of just setting state
+      const nodes = [];
+      const links = [];
+      let mainNodeId = null;
+      
+      if (initialSelections.selectedSankey) {
+        console.log("Processing selectedSankey:", initialSelections.selectedSankey);
+        const sankeyToUse = initialSelections.selectedSankey;
+        const type = sankeyToUse.layer === 0 ? 'state' : 
+                    sankeyToUse.layer === 1 ? 'city' : 
+                    sankeyToUse.layer === 2 ? 'occupation' : 'merchant';
+                    
+        const nodeId = `${type}-${sankeyToUse.name}`;
+        nodes.push({ 
+          id: nodeId, 
+          name: sankeyToUse.name, 
+          type: type,
+          isMain: true,
+          details: `Layer ${sankeyToUse.layer}` 
+        });
+        mainNodeId = nodeId;
+        
+        setSelectedSankey(initialSelections.selectedSankey);
+        
+        // Add related data nodes here...
+        if (data && data.length > 0) {
+          // For city or state nodes, add related merchants
+          if (['city', 'state'].includes(sankeyToUse.layer === 0 ? 'state' : 'city')) {
+            const relatedMerchants = data
+              .filter(row => {
+                if (sankeyToUse.layer === 0) {
+                  return row.state_id === sankeyToUse.name;
+                } else {
+                  return row.Location === sankeyToUse.name;
+                }
+              })
+              .map(row => row.MerchantID)
+              .filter((v, i, a) => a.indexOf(v) === i) // Unique values
+              .slice(0, 5); // Limit to top 5
+            
+            relatedMerchants.forEach(merchant => {
+              nodes.push({
+                id: `merchant-${merchant}`,
+                name: merchant,
+                type: 'merchant',
+                details: 'Related merchant'
+              });
+              
+              links.push({
+                source: mainNodeId,
+                target: `merchant-${merchant}`,
+                value: 1
+              });
+            });
+          }
+          
+          // For occupation nodes, add related cities
+          if (sankeyToUse.layer === 2) {
+            const relatedCities = data
+              .filter(row => row.CustomerOccupation === sankeyToUse.name)
+              .map(row => row.Location)
+              .filter((v, i, a) => a.indexOf(v) === i)
+              .slice(0, 5);
+            
+            relatedCities.forEach(city => {
+              nodes.push({
+                id: `city-${city}`,
+                name: city,
+                type: 'city',
+                details: 'Related to occupation'
+              });
+              
+              links.push({
+                source: mainNodeId,
+                target: `city-${city}`,
+                value: 1
+              });
+            });
+          }
+        }
+      } else if (initialSelections.selectedCircle) {
+        const circleToUse = initialSelections.selectedCircle;
+        nodes.push({ 
+          id: `city-${circleToUse}`, 
+          name: circleToUse, 
+          type: 'city',
+          isMain: true,
+          details: 'Geographic location'
+        });
+        mainNodeId = `city-${circleToUse}`;
+        
+        setSelectedCircle(initialSelections.selectedCircle);
+        
+        // Add related data...
+        if (data && data.length > 0) {
+          // Add related merchants for this city
+          const relatedMerchants = data
+            .filter(row => row.Location === circleToUse)
+            .map(row => row.MerchantID)
+            .filter((v, i, a) => a.indexOf(v) === i)
+            .slice(0, 5);
+          
+          relatedMerchants.forEach(merchant => {
+            nodes.push({
+              id: `merchant-${merchant}`,
+              name: merchant,
+              type: 'merchant',
+              details: 'Related merchant'
+            });
+            
+            links.push({
+              source: mainNodeId,
+              target: `merchant-${merchant}`,
+              value: 1
+            });
+          });
+        }
+      } else if (initialSelections.selectedDay) {
+        const dayToUse = initialSelections.selectedDay;
+        nodes.push({ 
+          id: `day-${dayToUse}`, 
+          name: new Date(dayToUse).toLocaleDateString(), 
+          type: 'time',
+          isMain: true,
+          details: `Date: ${new Date(dayToUse).toLocaleDateString()}`
+        });
+        mainNodeId = `day-${dayToUse}`;
+        
+        setSelectedDay(initialSelections.selectedDay);
+        
+        // Add cities for this day
+        if (dayToCities) {
+          const dayNum = +d3.timeDay(new Date(dayToUse));
+          const cities = dayToCities[dayNum];
+          
+          if (cities) {
+            cities.forEach(city => {
+              nodes.push({
+                id: `city-${city}`,
+                name: city,
+                type: 'city',
+                details: 'Active on selected date'
+              });
+              
+              links.push({
+                source: mainNodeId,
+                target: `city-${city}`,
+                value: 1
+              });
+            });
+          }
+        }
+      }
+      
+      // Set the graph data directly
+      if (nodes.length > 0) {
+        console.log("Created initial graph data:", { nodes, links });
+        setGraphData({ nodes, links });
+      }
+      
+      // Auto-generate insights for initial selections
+      setTimeout(() => {
+        setManualAnalysisRequested(true);
+      }, 500); // Small delay to ensure graph is ready
+    }
+  }, [initialSelections, data, dayToCities]); // Add data and dayToCities as dependencies
   
-  // Function to filter relevant data for analysis
-  function getRelevantData(allData, day, sankey, city) {
-    // Filter the data based on the selections
-    return allData.filter(item => {
-      if (day && new Date(item.date).getTime() !== new Date(day).getTime()) return false;
-      if (sankey && item.category !== sankey.name) return false;
-      if (city && item.Location !== city) return false;
-      return true;
+  // Update the useEffect to use both selected and hovered elements and be more stable
+  useEffect(() => {
+    // Check if we have explicit selections
+    const hasExplicitSelection = selectedDay !== null || selectedSankey !== null || selectedCircle !== null;
+    
+    console.log("Graph data effect running with selections:", {
+      hasExplicitSelection,
+      selectedDay: selectedDay ? (selectedDay instanceof Date ? selectedDay.toISOString() : selectedDay) : null,
+      selectedSankey: selectedSankey ? JSON.stringify(selectedSankey) : null,
+      selectedCircle,
+      hoveredDay,
+      hoveredSankey,
+      hoveredCircle
     });
-  }
-  
-  // Add state for selected elements
-  const [selectedDay, setSelectedDay] = useState(null);
-  const [selectedSankey, setSelectedSankey] = useState(null);
-  const [selectedCircle, setSelectedCircle] = useState(null);
-  
-  // Update the useEffect to use both selected and hovered elements
-  useEffect(() => {
-    // Use selected elements first, fall back to hovered if none selected
-    const dayToUse = selectedDay || hoveredDay;
-    const sankeyToUse = selectedSankey || hoveredSankey;
-    const circleToUse = selectedCircle || hoveredCircle;
     
+    // If we have explicit selections, don't respond to hover events at all
+    const isHoverEvent = !hasExplicitSelection && (hoveredDay || hoveredSankey || hoveredCircle);
+    
+    // Ignore hover events completely if we have explicit selections
+    if (hasExplicitSelection && (hoveredDay || hoveredSankey || hoveredCircle)) {
+      console.log("Ignoring hover event because we have explicit selections");
+      return;
+    }
+    
+    // Use selected elements first, never fall back to hovered if we have selections
+    const dayToUse = selectedDay !== null ? selectedDay : (isHoverEvent ? hoveredDay : null);
+    const sankeyToUse = selectedSankey !== null ? selectedSankey : (isHoverEvent ? hoveredSankey : null);
+    const circleToUse = selectedCircle !== null ? selectedCircle : (isHoverEvent ? hoveredCircle : null);
+    
+    console.log("Using elements for graph:", {
+      dayToUse: dayToUse ? (dayToUse instanceof Date ? dayToUse.toISOString() : dayToUse) : null,
+      sankeyToUse: sankeyToUse ? JSON.stringify(sankeyToUse) : null,
+      circleToUse
+    });
+    
+    // Early return if we have nothing to show
     if (!dayToUse && !sankeyToUse && !circleToUse) {
-      // Only clear graph data if nothing is selected AND nothing is hovered
       if (!graphData) return;
+      // Only clear graph data if no explicit selections and no hover
+      if (!hasExplicitSelection && !isHoverEvent) {
+        console.log("Clearing graph data - no selections or hovers");
+        setGraphData(null);
+      }
       return;
     }
     
@@ -340,10 +516,68 @@ function RelationshipPopupLayer({
       }
     }
     
-    console.log("Created graph data:", { nodes, links });
+    console.log("Created graph data with nodes:", nodes.length, "links:", links.length);
     setGraphData({ nodes, links });
     
   }, [selectedDay, selectedSankey, selectedCircle, hoveredDay, hoveredSankey, hoveredCircle, dayToCities, data]);
+  
+  // Replace the automatic useEffect with a manual trigger that handles both selections and hovers
+  useEffect(() => {
+    if (!manualAnalysisRequested) return;
+    
+    // Reset flag
+    setManualAnalysisRequested(false);
+    
+    // Get the effective elements to use (selected takes priority over hovered)
+    const dayToUse = selectedDay || hoveredDay;
+    const sankeyToUse = selectedSankey || hoveredSankey;
+    const circleToUse = selectedCircle || hoveredCircle;
+    
+    if (!dayToUse && !sankeyToUse && !circleToUse) {
+      console.log("No elements selected or hovered for insights generation");
+      setAiInsights(null);
+      setIsLoadingInsights(false);
+      return;
+    }
+    
+    // Same analysis code as before...
+    setIsLoadingInsights(true);
+    
+    // Prepare the data for AI analysis
+    const analysisData = {
+      selections: {
+        day: dayToUse ? new Date(dayToUse).toLocaleDateString() : null,
+        sankey: sankeyToUse ? sankeyToUse.name : null,
+        city: circleToUse
+      },
+      data: getRelevantData(data, dayToUse, sankeyToUse, circleToUse)
+    };
+    
+    console.log("Generating insights for:", analysisData.selections);
+    
+    // Call the AI service
+    generateInsights(analysisData)
+      .then(results => {
+        setAiInsights(results);
+        setIsLoadingInsights(false);
+      })
+      .catch(error => {
+        console.error('Error generating insights:', error);
+        setAiInsights({ error: 'Failed to generate insights. Please try again.' });
+        setIsLoadingInsights(false);
+      });
+  }, [manualAnalysisRequested, hoveredDay, hoveredSankey, hoveredCircle, selectedDay, selectedSankey, selectedCircle, data]);
+  
+  // Function to filter relevant data for analysis
+  function getRelevantData(allData, day, sankey, city) {
+    // Filter the data based on the selections
+    return allData.filter(item => {
+      if (day && new Date(item.date).getTime() !== new Date(day).getTime()) return false;
+      if (sankey && item.category !== sankey.name) return false;
+      if (city && item.Location !== city) return false;
+      return true;
+    });
+  }
   
   // Add export function
   const exportInsights = () => {
@@ -526,15 +760,15 @@ Generated on: ${new Date().toLocaleString()}
         <div style={{ marginBottom: '15px', textAlign: 'right' }}>
           <button
             onClick={() => setManualAnalysisRequested(true)}
-            disabled={isLoadingInsights || (!hoveredDay && !hoveredSankey && !hoveredCircle)}
+            disabled={isLoadingInsights || (!selectedDay && !selectedSankey && !selectedCircle && !hoveredDay && !hoveredSankey && !hoveredCircle)}
             style={{
               backgroundColor: '#007bff',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
               padding: '8px 12px',
-              cursor: isLoadingInsights || (!hoveredDay && !hoveredSankey && !hoveredCircle) ? 'not-allowed' : 'pointer',
-              opacity: isLoadingInsights || (!hoveredDay && !hoveredSankey && !hoveredCircle) ? 0.7 : 1
+              cursor: isLoadingInsights || (!selectedDay && !selectedSankey && !selectedCircle && !hoveredDay && !hoveredSankey && !hoveredCircle) ? 'not-allowed' : 'pointer',
+              opacity: isLoadingInsights || (!selectedDay && !selectedSankey && !selectedCircle && !hoveredDay && !hoveredSankey && !hoveredCircle) ? 0.7 : 1
             }}
           >
             {isLoadingInsights ? 'Analyzing...' : 'Generate Insights'}
@@ -657,7 +891,9 @@ Generated on: ${new Date().toLocaleString()}
               textAlign: 'center',
               color: '#6c757d'
             }}>
-              Select elements in the visualizations to generate insights
+              {selectedDay || selectedSankey || selectedCircle ? 
+                "Click 'Generate Insights' to analyze the selected elements" : 
+                "Select elements in the visualizations to generate insights"}
             </div>
           )}
         </div>
