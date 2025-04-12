@@ -98,3 +98,72 @@
   font-size: 12px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
+
+/* Add styles for drop zones */
+.drop-zone {
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+/* Style for drop zone when it's a valid target for a filter drag */
+.drop-zone.drag-over {
+  box-shadow: 0 0 10px rgba(52, 152, 219, 0.7);
+  outline: 2px dashed #3498db;
+  outline-offset: -2px;
+  background-color: rgba(52, 152, 219, 0.1);
+}
+
+/* Special style for CircleBipartite when it's a filter target */
+#circle-bipartite.drop-zone.drag-over {
+  box-shadow: 0 0 15px rgba(52, 152, 219, 0.9);
+  outline: 3px dashed #3498db;
+  outline-offset: -3px;
+  background-color: rgba(52, 152, 219, 0.15);
+}
+
+/* Style for filter badge */
+.filter-badge {
+  background-color: #3498db;
+  color: white;
+  border-radius: 10px;
+  padding: 2px 8px;
+  margin: 0 2px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.filter-badge .remove-filter {
+  margin-left: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.filter-badge .remove-filter:hover {
+  color: #f44336;
+}
+
+/* Animation for filtered items */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.filtered-item {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+/* Draggable elements */
+.draggable {
+  cursor: grab;
+  transition: all 0.2s ease;
+}
+
+.draggable:hover {
+  filter: brightness(1.2);
+}
+
+.draggable:active {
+  cursor: grabbing;
+}

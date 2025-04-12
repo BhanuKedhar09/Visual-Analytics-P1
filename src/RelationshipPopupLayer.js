@@ -15,7 +15,7 @@ function RelationshipPopupLayer({
   onSave, 
   onClose 
 }) {
-  console.log("RelationshipPopupLayer MOUNT with initialSelections:", JSON.stringify(initialSelections));
+  // console.log("RelationshipPopupLayer MOUNT with initialSelections:", JSON.stringify(initialSelections));
   
   const [position, setPosition] = useState(initialPosition || { x: window.innerWidth - 520, y: 80 });
   const [isDragging, setIsDragging] = useState(false);
@@ -31,11 +31,11 @@ function RelationshipPopupLayer({
   const [selectedSankey, setSelectedSankey] = useState(initialSelections.selectedSankey || null);
   const [selectedCircle, setSelectedCircle] = useState(initialSelections.selectedCircle || null);
   
-  console.log("Initial state:", { 
-    selectedDay: selectedDay ? (selectedDay instanceof Date ? selectedDay.toISOString() : selectedDay) : null,
-    selectedSankey: selectedSankey ? JSON.stringify(selectedSankey) : null,
-    selectedCircle: selectedCircle
-  });
+  // console.log("Initial state:", { 
+  //   selectedDay: selectedDay ? (selectedDay instanceof Date ? selectedDay.toISOString() : selectedDay) : null,
+  //   selectedSankey: selectedSankey ? JSON.stringify(selectedSankey) : null,
+  //   selectedCircle: selectedCircle
+  // });
   
   // Get relevant context data
   const { hoveredDay, hoveredSankey, hoveredCircle, dayToCities: contextDayToCities } = useContext(InteractionContext);
@@ -159,15 +159,15 @@ function RelationshipPopupLayer({
   
   // Use effect to trigger initial graph generation when component mounts with initialSelections
   useEffect(() => {
-    console.log("Initial graph generation effect running with initialSelections:", 
-      JSON.stringify(initialSelections),
-      "selectedDay:", selectedDay, 
-      "selectedSankey:", selectedSankey, 
-      "selectedCircle:", selectedCircle);
+    // console.log("Initial graph generation effect running with initialSelections:", 
+    //   JSON.stringify(initialSelections),
+    //   "selectedDay:", selectedDay, 
+    //   "selectedSankey:", selectedSankey, 
+    //   "selectedCircle:", selectedCircle);
       
     // If we have initial selections, force a graph update
     if (Object.keys(initialSelections).length > 0) {
-      console.log("Found initialSelections, generating graph");
+      // console.log("Found initialSelections, generating graph");
       
       // Create graph data directly instead of just setting state
       const nodes = [];
@@ -175,7 +175,7 @@ function RelationshipPopupLayer({
       let mainNodeId = null;
       
       if (initialSelections.selectedSankey) {
-        console.log("Processing selectedSankey:", initialSelections.selectedSankey);
+        // console.log("Processing selectedSankey:", initialSelections.selectedSankey);
         const sankeyToUse = initialSelections.selectedSankey;
         const type = sankeyToUse.layer === 0 ? 'state' : 
                     sankeyToUse.layer === 1 ? 'city' : 
@@ -341,22 +341,22 @@ function RelationshipPopupLayer({
     // Check if we have explicit selections
     const hasExplicitSelection = selectedDay !== null || selectedSankey !== null || selectedCircle !== null;
     
-    console.log("Graph data effect running with selections:", {
-      hasExplicitSelection,
-      selectedDay: selectedDay ? (selectedDay instanceof Date ? selectedDay.toISOString() : selectedDay) : null,
-      selectedSankey: selectedSankey ? JSON.stringify(selectedSankey) : null,
-      selectedCircle,
-      hoveredDay,
-      hoveredSankey,
-      hoveredCircle
-    });
+    // console.log("Graph data effect running with selections:", {
+    //   hasExplicitSelection,
+    //   selectedDay: selectedDay ? (selectedDay instanceof Date ? selectedDay.toISOString() : selectedDay) : null,
+    //   selectedSankey: selectedSankey ? JSON.stringify(selectedSankey) : null,
+    //   selectedCircle,
+    //   hoveredDay,
+    //   hoveredSankey,
+    //   hoveredCircle
+    // });
     
     // If we have explicit selections, don't respond to hover events at all
     const isHoverEvent = !hasExplicitSelection && (hoveredDay || hoveredSankey || hoveredCircle);
     
     // Ignore hover events completely if we have explicit selections
     if (hasExplicitSelection && (hoveredDay || hoveredSankey || hoveredCircle)) {
-      console.log("Ignoring hover event because we have explicit selections");
+      // console.log("Ignoring hover event because we have explicit selections");
       return;
     }
     
@@ -365,18 +365,18 @@ function RelationshipPopupLayer({
     const sankeyToUse = selectedSankey !== null ? selectedSankey : (isHoverEvent ? hoveredSankey : null);
     const circleToUse = selectedCircle !== null ? selectedCircle : (isHoverEvent ? hoveredCircle : null);
     
-    console.log("Using elements for graph:", {
-      dayToUse: dayToUse ? (dayToUse instanceof Date ? dayToUse.toISOString() : dayToUse) : null,
-      sankeyToUse: sankeyToUse ? JSON.stringify(sankeyToUse) : null,
-      circleToUse
-    });
+    // console.log("Using elements for graph:", {
+    //   dayToUse: dayToUse ? (dayToUse instanceof Date ? dayToUse.toISOString() : dayToUse) : null,
+    //   sankeyToUse: sankeyToUse ? JSON.stringify(sankeyToUse) : null,
+    //   circleToUse
+    // });
     
     // Early return if we have nothing to show
     if (!dayToUse && !sankeyToUse && !circleToUse) {
       if (!graphData) return;
       // Only clear graph data if no explicit selections and no hover
       if (!hasExplicitSelection && !isHoverEvent) {
-        console.log("Clearing graph data - no selections or hovers");
+        // console.log("Clearing graph data - no selections or hovers");
         setGraphData(null);
       }
       return;
@@ -516,7 +516,7 @@ function RelationshipPopupLayer({
       }
     }
     
-    console.log("Created graph data with nodes:", nodes.length, "links:", links.length);
+    // console.log("Created graph data with nodes:", nodes.length, "links:", links.length);
     setGraphData({ nodes, links });
     
   }, [selectedDay, selectedSankey, selectedCircle, hoveredDay, hoveredSankey, hoveredCircle, dayToCities, data]);
@@ -534,7 +534,7 @@ function RelationshipPopupLayer({
     const circleToUse = selectedCircle || hoveredCircle;
     
     if (!dayToUse && !sankeyToUse && !circleToUse) {
-      console.log("No elements selected or hovered for insights generation");
+      // console.log("No elements selected or hovered for insights generation");
       setAiInsights(null);
       setIsLoadingInsights(false);
       return;
@@ -553,7 +553,7 @@ function RelationshipPopupLayer({
       data: getRelevantData(data, dayToUse, sankeyToUse, circleToUse)
     };
     
-    console.log("Generating insights for:", analysisData.selections);
+    // console.log("Generating insights for:", analysisData.selections);
     
     // Call the AI service
     generateInsights(analysisData)
@@ -562,7 +562,7 @@ function RelationshipPopupLayer({
         setIsLoadingInsights(false);
       })
       .catch(error => {
-        console.error('Error generating insights:', error);
+        // console.error('Error generating insights:', error);
         setAiInsights({ error: 'Failed to generate insights. Please try again.' });
         setIsLoadingInsights(false);
       });
@@ -610,7 +610,7 @@ Generated on: ${new Date().toLocaleString()}
   };
   
   // Add console logging to debug
-  console.log("Graph data:", graphData);
+  // console.log("Graph data:", graphData);
   
   // Add a click handler function to set selected elements
   const handleElementClick = (type, value) => {

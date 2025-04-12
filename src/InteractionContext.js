@@ -24,6 +24,9 @@ export function InteractionProvider({ children }) {
   const [sankeyHighlightedCity, setSankeyHighlightedCity] = useState(null);
   const [timeHighlightedCities, setTimeHighlightedCities] = useState([]);
 
+  // New: State for Circle Bipartite filters
+  const [circleFilters, setCircleFilters] = useState(null);
+  
   // Debug - track changes to highlighted elements
   useEffect(() => {
     console.log("InteractionContext: sankeyHighlightedCity changed to", sankeyHighlightedCity);
@@ -32,6 +35,11 @@ export function InteractionProvider({ children }) {
   useEffect(() => {
     console.log("InteractionContext: sankeyHighlightedState changed to", sankeyHighlightedState);
   }, [sankeyHighlightedState]);
+
+  // NEW: Debug for circle filters
+  useEffect(() => {
+    console.log("InteractionContext: circleFilters changed to", circleFilters);
+  }, [circleFilters]);
 
   // NEW: Global mapping of city → Set of day numbers (and its setter)
   const [cityToDays, setCityToDays] = useState({});
@@ -62,6 +70,8 @@ export function InteractionProvider({ children }) {
     setTimeHighlightedCity(null);
     setSankeyHighlightedState(null);
     setSankeyHighlightedCity(null);
+    // New: Reset circle filters
+    setCircleFilters(null);
   }
 
   return (
@@ -113,6 +123,9 @@ export function InteractionProvider({ children }) {
         setLinkDisplayMode,
         timeHighlightedCities,
         setTimeHighlightedCities,
+        // New: Circle filters
+        circleFilters,
+        setCircleFilters,
       }}
     >
       {children}

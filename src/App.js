@@ -78,6 +78,8 @@ function App() {
               initialY={0}            
             >
               <CircleBipartite
+                id="circle-bipartite"
+                className="drop-zone"
                 width={600}
                 height={550}
                 innerRadius={150}
@@ -100,6 +102,24 @@ function App() {
             </SleekWidget>
             <LineOverlay /> {/* NEW: Overlay for drawing cross-view linking lines */}
             <RelationshipLayerToggle />
+            
+            {/* Add tooltip div for drag feedback */}
+            <div 
+              id="drag-tooltip" 
+              style={{
+                position: "absolute",
+                display: "none",
+                background: "rgba(0,0,0,0.8)",
+                color: "white",
+                padding: "5px 10px",
+                borderRadius: "4px",
+                fontSize: "12px",
+                pointerEvents: "none",
+                zIndex: 9999
+              }}
+            >
+              Drag to filter
+            </div>
           </div>
         </InteractionProvider>
       </DataProvider>
