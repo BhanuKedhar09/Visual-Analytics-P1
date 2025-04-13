@@ -93,7 +93,7 @@ function SankeyFourColumns({
         d.MerchantID?.trim()
     );
     if (filtered.length === 0) {
-      console.warn("No valid rows after filtering.");
+      // console.warn("No valid rows after filtering.");
       return;
     }
 
@@ -281,7 +281,7 @@ function SankeyFourColumns({
       }
     }
     if (sankeyLinks.length === 0) {
-      console.warn("No links remain after building sankeyLinks.");
+      // console.warn("No links remain after building sankeyLinks.");
       return;
     }
 
@@ -312,7 +312,7 @@ function SankeyFourColumns({
       try {
         sankeyLayout = sankeyGenerator(sankeyData);
       } catch (err) {
-        console.error("Sankey layout error:", err);
+        // console.error("Sankey layout error:", err);
         return;
       }
       sankeyLayoutRef.current = sankeyLayout;
@@ -393,7 +393,7 @@ function SankeyFourColumns({
           if (d.layer === 0) {
             // For a state node, gather connected city names from sankey links.
             const links = sankeyLayoutRef.current.links;
-            console.log("SANKEY LINKS:", links);
+            // console.log("SANKEY LINKS:", links);
             links.forEach((link) => {
               if (link.source.index === d.index && link.target.layer === 1) {
                 connectedCities.push(link.target.name);
@@ -406,17 +406,17 @@ function SankeyFourColumns({
             
             // Find days related to this state using dayToStates
             if (dayToStates && Object.keys(dayToStates).length > 0) {
-              console.log(`Finding days for state: ${d.name}`);
-              console.log(`DEBUG - dayToStates structure:`, dayToStates);
-              console.log(`DEBUG - dayToStates keys count:`, Object.keys(dayToStates).length);
-              console.log(`DEBUG - Sample dayToStates entries:`, 
-                Object.entries(dayToStates).slice(0, 3).map(([dayNum, stateSet]) => ({
-                  dayNum,
-                  date: new Date(+dayNum),
-                  statesCount: stateSet.size,
-                  sampleStates: Array.from(stateSet).slice(0, 5)
-                }))
-              );
+              // console.log(`Finding days for state: ${d.name}`);
+              // console.log(`DEBUG - dayToStates structure:`, dayToStates);
+              // console.log(`DEBUG - dayToStates keys count:`, Object.keys(dayToStates).length);
+              // console.log(`DEBUG - Sample dayToStates entries:`, 
+              //   Object.entries(dayToStates).slice(0, 3).map(([dayNum, stateSet]) => ({
+              //     dayNum,
+              //     date: new Date(+dayNum),
+              //     statesCount: stateSet.size,
+              //     sampleStates: Array.from(stateSet).slice(0, 5)
+              //   }))
+              // );
               
               let matchingDaysCount = 0;
               // Iterate through all day numbers in dayToStates
@@ -431,18 +431,18 @@ function SankeyFourColumns({
                   
                   // Debug format - log a sample of formatted dates
                   if (connectedDays.size <= 5) {
-                    console.log(`SANKEY DATE FORMAT: dayNum=${dayNum}, date=${date}, formatted=${dateStr}`);
+                    // console.log(`SANKEY DATE FORMAT: dayNum=${dayNum}, date=${date}, formatted=${dateStr}`);
                     
                     // Also log what the corresponding time bar ID would be
                     const expectedTimeBarId = `time-bar-${dateStr}`;
-                    console.log(`EXPECTED TIME BAR ID: ${expectedTimeBarId}`);
+                    // console.log(`EXPECTED TIME BAR ID: ${expectedTimeBarId}`);
                   }
                 }
               });
               
-              console.log(`Found ${connectedDays.size}/${matchingDaysCount} days for state ${d.name}`);
+              // console.log(`Found ${connectedDays.size}/${matchingDaysCount} days for state ${d.name}`);
             } else {
-              console.log("ERROR: dayToStates is empty or undefined!", dayToStates);
+              // console.log("ERROR: dayToStates is empty or undefined!", dayToStates);
             }
             
             // Convert set to array for the hoveredSankey object - FIX: Added for state nodes
@@ -643,11 +643,11 @@ function SankeyFourColumns({
     if (!nodesRef.current) return;
     
     // Debug info
-    console.log("Sankey highlighting update:", {
-      sankeyHighlightedCity,
-      sankeyHighlightedState,
-      nodeCount: nodesRef.current.size()
-    });
+    // console.log("Sankey highlighting update:", {
+    //   sankeyHighlightedCity,
+    //   sankeyHighlightedState,
+    //   nodeCount: nodesRef.current.size()
+    // });
     
     // CRITICAL FIX: First reset all nodes to their default colors
     // This prevents any state bleeding where previously highlighted nodes remain highlighted
@@ -666,11 +666,11 @@ function SankeyFourColumns({
       
       // Apply highlight from external context (sankeyHighlightedState/City)
       if (d.layer === 0 && d.name === sankeyHighlightedState) {
-        console.log(`Highlighting state node: ${d.name}`);
+        // console.log(`Highlighting state node: ${d.name}`);
         return "red";
       }
       if (d.layer === 1 && d.name === sankeyHighlightedCity) {
-        console.log(`Highlighting city node: ${d.name}`);
+        // console.log(`Highlighting city node: ${d.name}`);
         return "red";
       }
       
@@ -723,12 +723,12 @@ function SankeyFourColumns({
       return;
     }
 
-    console.log("Sankey link highlight calculation:", {
-      sankeyHighlightedCity,
-      sankeyHighlightedState,
-      hoveredDay: hoveredDay ? d3.timeFormat("%Y-%m-%d")(hoveredDay) : null,
-      hasLinks: sankeyLayoutRef.current?.links?.length > 0
-    });
+    // console.log("Sankey link highlight calculation:", {
+    //   sankeyHighlightedCity,
+    //   sankeyHighlightedState,
+    //   hoveredDay: hoveredDay ? d3.timeFormat("%Y-%m-%d")(hoveredDay) : null,
+    //   hasLinks: sankeyLayoutRef.current?.links?.length > 0
+    // });
 
     const { nodes, links } = sankeyLayoutRef.current;
     const connectedLinkIndices = new Set();
@@ -744,7 +744,7 @@ function SankeyFourColumns({
     
     // CASE 1: Handle highlighted city
     if (cityNode) {
-      console.log(`Found city node: ${cityNode.name}, index: ${cityNode.index}`);
+      // console.log(`Found city node: ${cityNode.name}, index: ${cityNode.index}`);
       
       // Add the city node itself to highlighted nodes
       connectedNodeIndices.add(cityNode.index);
@@ -758,14 +758,14 @@ function SankeyFourColumns({
         if (link.source.index === cityNode.index) {
           connectedLinkIndices.add(i);
           connectedNodeIndices.add(link.target.index); // The occupation node
-          console.log(`Found forward link ${i}: ${cityNode.name} → ${link.target.name}`);
+          // console.log(`Found forward link ${i}: ${cityNode.name} → ${link.target.name}`);
         }
         
         // Find link where this city is target (state → city)
         if (link.target.index === cityNode.index) {
           connectedLinkIndices.add(i);
           connectedNodeIndices.add(link.source.index); // The state node
-          console.log(`Found backward link ${i}: ${link.source.name} → ${cityNode.name}`);
+          // console.log(`Found backward link ${i}: ${link.source.name} → ${cityNode.name}`);
         }
       });
     }
@@ -773,7 +773,7 @@ function SankeyFourColumns({
     // CASE 2: Handle highlighted state
     else if (stateNode) {
       // ONLY state is highlighted => highlight all links connected to that state
-      console.log(`Found state node: ${stateNode.name}, index: ${stateNode.index}`);
+      // console.log(`Found state node: ${stateNode.name}, index: ${stateNode.index}`);
       
       // Add the state node itself to highlighted nodes
       connectedNodeIndices.add(stateNode.index);
@@ -782,7 +782,7 @@ function SankeyFourColumns({
         if (link.source.index === stateNode.index) {
           connectedLinkIndices.add(i);
           connectedNodeIndices.add(link.target.index);
-          console.log(`Found link ${i}: ${stateNode.name} → ${link.target.name}`);
+          // console.log(`Found link ${i}: ${stateNode.name} → ${link.target.name}`);
         }
       });
     } 
@@ -790,16 +790,16 @@ function SankeyFourColumns({
     // CASE 3: Handle day hover from timegraph - highlight all cities and states for that day
     else if (hoveredDay) {
       const dayNum = +d3.timeDay(hoveredDay);
-      console.log(`Highlighting nodes for day: ${d3.timeFormat("%Y-%m-%d")(hoveredDay)}`);
+      // console.log(`Highlighting nodes for day: ${d3.timeFormat("%Y-%m-%d")(hoveredDay)}`);
       
       // First find cities for this day and highlight them
       const citiesForDay = dayToCities[dayNum] ? Array.from(dayToCities[dayNum]) : [];
-      console.log(`Found ${citiesForDay.length} cities for this day`);
+      // console.log(`Found ${citiesForDay.length} cities for this day`);
       
       citiesForDay.forEach(city => {
         const cityNodeToHighlight = nodes.find(n => n.layer === 1 && n.name === city);
         if (cityNodeToHighlight) {
-          console.log(`Found city node to highlight: ${city}`);
+          // console.log(`Found city node to highlight: ${city}`);
           connectedNodeIndices.add(cityNodeToHighlight.index);
           
           // Also highlight links from this city
@@ -818,12 +818,12 @@ function SankeyFourColumns({
       
       // Then find states for this day and highlight them
       const statesForDay = dayToStates[dayNum] ? Array.from(dayToStates[dayNum]) : [];
-      console.log(`Found ${statesForDay.length} states for this day`);
+      // console.log(`Found ${statesForDay.length} states for this day`);
       
       statesForDay.forEach(state => {
         const stateNodeToHighlight = nodes.find(n => n.layer === 0 && n.name === state);
         if (stateNodeToHighlight) {
-          console.log(`Found state node to highlight: ${state}`);
+          // console.log(`Found state node to highlight: ${state}`);
           connectedNodeIndices.add(stateNodeToHighlight.index);
           
           // Also highlight links from this state
@@ -837,7 +837,7 @@ function SankeyFourColumns({
       });
     }
 
-    console.log(`Highlighting ${connectedLinkIndices.size} links and ${connectedNodeIndices.size} nodes`);
+    // console.log(`Highlighting ${connectedLinkIndices.size} links and ${connectedNodeIndices.size} nodes`);
 
     // Save in state => a later useEffect or direct .attr() call updates the visuals
     setHighlightedLinks(connectedLinkIndices);
@@ -863,11 +863,11 @@ function SankeyFourColumns({
   // At the start of your rendering (after the useEffects), add this debugging code:
   // Debug values being received for highlighting
   useEffect(() => {
-    console.log("SankeyFourColumns received highlight values:", {
-      sankeyHighlightedCity,
-      sankeyHighlightedState,
-      hoveredSankey
-    });
+    // console.log("SankeyFourColumns received highlight values:", {
+    //   sankeyHighlightedCity,
+    //   sankeyHighlightedState,
+    //   hoveredSankey
+    // });
   }, [sankeyHighlightedCity, sankeyHighlightedState, hoveredSankey]);
 
   return (
@@ -895,9 +895,9 @@ function defaultColorByLayer(layer) {
 // Add this debugging/fix function at the bottom of the file
 export function debugSankeyNodes() {
   const nodes = document.querySelectorAll("[id^='sankey-node-']");
-  console.log(`Found ${nodes.length} sankey nodes:`);
+  // console.log(`Found ${nodes.length} sankey nodes:`);
   nodes.forEach(node => {
-    console.log(node.id, node.getAttribute("fill"));
+    // console.log(node.id, node.getAttribute("fill"));
   });
 }
 

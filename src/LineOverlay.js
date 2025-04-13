@@ -35,9 +35,9 @@ const LineOverlay = () => {
   // This effect runs whenever the hover state or link mode changes
   useEffect(() => {
     // Debug current state
-    console.log("=== LineOverlay State ===");
-    console.log("hoveredCity:", hoveredCity);
-    console.log("linkDisplayMode:", linkDisplayMode);
+    // console.log("=== LineOverlay State ===");
+    // console.log("hoveredCity:", hoveredCity);
+    // console.log("linkDisplayMode:", linkDisplayMode);
     
     // Clear lines if in HIGHLIGHT_ONLY mode, but still allow highlighting
     if (linkDisplayMode === LinkDisplayMode.HIGHLIGHT_ONLY) {
@@ -45,7 +45,7 @@ const LineOverlay = () => {
       
       // Still highlight the Sankey node even in highlight-only mode
       if (hoveredCity) {
-        console.log(`Setting sankeyHighlightedCity to: ${hoveredCity} (highlight-only mode)`);
+        // console.log(`Setting sankeyHighlightedCity to: ${hoveredCity} (highlight-only mode)`);
         setSankeyHighlightedCity(hoveredCity);
       } else {
         setSankeyHighlightedCity(null);

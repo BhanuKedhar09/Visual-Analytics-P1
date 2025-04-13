@@ -48,6 +48,8 @@ function GeographicHeatmap({
     setCityToDays,
     setCityToDaysGlobal,
     cityToDaysGlobal,
+    setCircleFilters,
+    setDroppedItem,
   } = useContext(InteractionContext);
 
   /*******************************************
@@ -270,11 +272,11 @@ function GeographicHeatmap({
             setHoveredCity(d.city);
             
             // Debug info to console
-            console.log("GeoMap Circle Hover:", {
-              city: d.city,
-              state: d.state,
-              action: "Highlighting ONLY this specific city in Sankey"
-            });
+            // console.log("GeoMap Circle Hover:", {
+            //   city: d.city,
+            //   state: d.state,
+            //   action: "Highlighting ONLY this specific city in Sankey"
+            // });
             
             // ONLY highlight this specific city in the Sankey diagram
             // NOT highlighting the state to prevent multiple cities from highlighting
@@ -305,7 +307,7 @@ function GeographicHeatmap({
               .style("top", (evt.pageY + 10) + "px");
           })
           .on("mouseout", () => {
-            console.log("GeoMap Circle Mouseout: Clearing highlights");
+            // console.log("GeoMap Circle Mouseout: Clearing highlights");
             // Clear both local hover and sankey hover/highlight
             setHoveredCity(null);
             setSankeyHighlightedCity(null);
@@ -331,6 +333,18 @@ function GeographicHeatmap({
           d.type = "geoCircle";
         });
 
+        // Add drag end event to signal when dragging stops
+        circleSel.on("dragend", function(evt, d) {
+          console.log("Drag ended for:", d.city);
+          
+          // Signal the end of dragging by setting droppedItem to a special value
+          setDroppedItem({
+            action: "dragend",
+            data: d,
+            timestamp: Date.now()
+          });
+        });
+
         const handleDrop = createDropHandler({
           setHighlightedState,
           setHighlightedCity,
@@ -350,7 +364,8 @@ function GeographicHeatmap({
           cityToDays,
           setCityToDays,
           setHoveredSankey,
-
+          setCircleFilters,
+          setDroppedItem,
         });
         enableCopyAndDrag(circleSel, handleDrop);
         circlesRef.current = circleSel;

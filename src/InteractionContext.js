@@ -23,20 +23,57 @@ export function InteractionProvider({ children }) {
   const [sankeyHighlightedState, setSankeyHighlightedState] = useState(null);
   const [sankeyHighlightedCity, setSankeyHighlightedCity] = useState(null);
   const [timeHighlightedCities, setTimeHighlightedCities] = useState([]);
-
+  const [circleFilter, setCircleFilter] = useState(null);
   // New: State for Circle Bipartite filters
-  const [circleFilters, setCircleFilters] = useState(null);
+  const [circleFilters, setCircleFiltersOriginal] = useState(null);
   
+  // NEW: Dedicated state for dropped items - direct communication channel
+  const [droppedItem, setDroppedItem] = useState(null);
+  
+  // NEW: Make setDroppedItem available globally for drag end handlers
+  useEffect(() => {
+    // Expose the setter function to the window object
+    window.setDroppedItem = (value) => {
+      console.log("Global setDroppedItem called with:", value);
+      setDroppedItem(value);
+    };
+    
+    // Clean up when component unmounts
+    return () => {
+      window.setDroppedItem = undefined;
+    };
+  }, []);
+  
+  // Wrap the setter function to ensure the value is always treated as new
+  const setCircleFilters = (value) => {
+    console.log("InteractionContext: Setting circleFilters to", value);
+    // If setting to null, just use the original setter
+    if (value === null) {
+      setCircleFiltersOriginal(null);
+      return;
+    }
+    
+    // Otherwise, create a new object to ensure React detects the change
+    setCircleFiltersOriginal({
+      ...value,
+      _updatedAt: Date.now() // Add a timestamp to ensure uniqueness
+    });
+  };
+
   // Debug - track changes to highlighted elements
   useEffect(() => {
-    console.log("InteractionContext: sankeyHighlightedCity changed to", sankeyHighlightedCity);
+    // console.log("InteractionContext: sankeyHighlightedCity changed to", sankeyHighlightedCity);
   }, [sankeyHighlightedCity]);
 
   useEffect(() => {
-    console.log("InteractionContext: sankeyHighlightedState changed to", sankeyHighlightedState);
+    // console.log("InteractionContext: sankeyHighlightedState changed to", sankeyHighlightedState);
   }, [sankeyHighlightedState]);
 
   // NEW: Debug for circle filters
+  useEffect(() => {
+    // console.log("InteractionContext: circleFilters changed to", circleFilters);
+  }, [circleFilters]);
+
   useEffect(() => {
     console.log("InteractionContext: circleFilters changed to", circleFilters);
   }, [circleFilters]);
@@ -124,11 +161,19 @@ export function InteractionProvider({ children }) {
         timeHighlightedCities,
         setTimeHighlightedCities,
         // New: Circle filters
+        circleFilter,
+        setCircleFilter,
         circleFilters,
         setCircleFilters,
+        // NEW: Dedicated state for dropped items - direct communication channel
+        droppedItem,
+        setDroppedItem,
       }}
     >
       {children}
     </InteractionContext.Provider>
   );
 }
+
+
+

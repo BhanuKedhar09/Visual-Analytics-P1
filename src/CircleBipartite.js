@@ -23,367 +23,544 @@ function CircleBipartite({
   className = "drop-zone", // Add class for drop zone
 }) {
   const { data } = useContext(DataContext);
-  const { circleFilters, setCircleFilters } = useContext(InteractionContext);
+  const { circleFilters, setCircleFilters, droppedItem, setDroppedItem } = useContext(InteractionContext);
   const svgRef = useRef(null);
   const [filteredData, setFilteredData] = useState(null);
-  
-  // Create custom drop handler for debugging
-  const customDropHandler = (nodeData, containerBox, dropZone) => {
-    console.log("CircleBipartite: Element dropped with data:", nodeData);
-    console.log("CircleBipartite: Drop zone:", dropZone?.id);
+  const [updateCounter, setUpdateCounter] = useState(0); // Force re-render counter
+
+  // NEW: Direct observer for droppedItem changes
+  useEffect(() => {
+    if (!droppedItem) return;
     
-    if (dropZone?.id !== "circle-bipartite") {
-      console.log("CircleBipartite: Drop rejected - not dropped on circle bipartite");
+    console.log("DIRECT OBSERVATION - Received droppedItem:", droppedItem);
+    
+    // Check if this is a dragend action
+    if (droppedItem.action === "dragend") {
+      console.log("DIRECT OBSERVATION - Drag ended, clearing filter");
+      setCircleFilters(null);
+      setDroppedItem(null);
       return;
     }
     
-    // Create the handler from dropHandler.js
-    const handler = createDropHandler({
-      setCircleFilters
-    });
+    // Only process drops intended for this component
+    if (droppedItem.dropZone !== "circle-bipartite") return;
     
+    // Extract the node data
+    const nodeData = droppedItem.data;
+    
+    // Process the drop based on node type
+    if (nodeData.type === "geoCircle" && nodeData.city) {
+      console.log("DIRECT OBSERVATION - Setting filter for city:", nodeData.city);
+      
+      // Create and apply the filter
+      const filter = {
+        type: "city",
+        value: nodeData.city,
+        label: `City: ${nodeData.city}`,
+        timestamp: droppedItem.timestamp
+      };
+      
+      // Set the filter
+      setCircleFilters(filter);
+      
+      // Clear the droppedItem to prepare for the next drop
+      setTimeout(() => {
+        setDroppedItem(null);
+      }, 100);
+    }
+  }, [droppedItem, setCircleFilters, setDroppedItem]);
+
+  // Create custom drop handler for debugging
+  const customDropHandler = (nodeData, containerBox, dropZone) => {
+    // FOCUSED DEBUG: Log exactly what's being dropped
+    console.log("DROPPED DATA:", {
+      type: nodeData.type,
+      city: nodeData.city,
+      state: nodeData.state,
+      fullData: nodeData
+    });
+
+    if (dropZone?.id !== "circle-bipartite") {
+      return;
+    }
+
+    // CRITICAL FIX: Apply filter directly with the component's context reference
+    // instead of creating a new handler with potentially different references
+    if (nodeData.type === "geoCircle" && nodeData.city) {
+      console.log("DIRECT FILTER APPLICATION - Bypassing drop handler layers");
+      
+      // Use the same format as the button for consistency
+      const filter = {
+        type: "city",
+        value: nodeData.city,
+        label: `City: ${nodeData.city}`
+      };
+      
+      console.log("DIRECT FILTER - Setting:", filter);
+      
+      // Use the component's reference to setCircleFilters directly
+      setCircleFilters(filter);
+      
+      // Add a timeout to check if the filter was applied
+      setTimeout(() => {
+        console.log("CHECKING FILTER STATE AFTER DROP:", circleFilters);
+        
+        // If filter wasn't applied, try again with force update
+        if (!circleFilters || circleFilters.value !== nodeData.city) {
+          console.log("EMERGENCY RETRY - Filter didn't apply, trying again");
+          const retryFilter = {
+            type: "city",
+            value: nodeData.city,
+            label: `City: ${nodeData.city}`,
+            _forceUpdate: Date.now() // Add unique property to force state change
+          };
+          setCircleFilters(retryFilter);
+          
+          // Force a counter update to ensure re-render
+          setUpdateCounter(prev => prev + 500);
+        }
+      }, 100);
+      
+      return;
+    }
+
+    // If we get here, fall back to the standard handler
+    console.log("USING STANDARD HANDLER - NOT RECOMMENDED");
+    const handler = createDropHandler({
+      setCircleFilters: (filterData) => {
+        console.log("CIRCLE FILTER BEING SET:", filterData);
+        setCircleFilters(filterData);
+      },
+    });
+
     // Call the handler
     handler(nodeData, containerBox, dropZone);
   };
-  
-  // Process filters and update filteredData
+
+  // Simplified filtering approach focused on direct field access
   useEffect(() => {
-    if (!data || data.length === 0) return;
+    // Only log when filter changes
+    if (circleFilters) {
+      console.log("FILTER APPLIED:", circleFilters);
+    } else if (circleFilters === null) {
+      console.log("FILTER CLEARED");
+    }
     
-    if (!circleFilters) {
-      // No filters, use all data
+    // If no data or no filter, use all data
+    if (!data || data.length === 0 || !circleFilters) {
       setFilteredData(data);
       return;
     }
     
-    console.log("CircleBipartite: Applying filter:", circleFilters);
-    
-    // Apply filter based on its type
-    let filtered = data;
-    
-    switch(circleFilters.type) {
-      case "city":
-        console.log(`CircleBipartite: Filtering by city: ${circleFilters.value}`);
-        filtered = data.filter(d => d.Location === circleFilters.value);
-        break;
-      case "state":
-        console.log(`CircleBipartite: Filtering by state: ${circleFilters.value}`);
-        filtered = data.filter(d => d.state_id === circleFilters.value);
-        break;
-      case "merchant":
-        console.log(`CircleBipartite: Filtering by merchant: ${circleFilters.value}`);
-        filtered = data.filter(d => d.MerchantID === circleFilters.value);
-        break;
-      case "occupation":
-        console.log(`CircleBipartite: Filtering by occupation: ${circleFilters.value}`);
-        filtered = data.filter(d => d.CustomerOccupation === circleFilters.value);
-        break;
-      case "date":
-        if (circleFilters.value instanceof Date) {
-          // Convert transaction date to day number
-          const filterDayNum = +d3.timeDay(circleFilters.value);
-          console.log(`CircleBipartite: Filtering by date: ${circleFilters.value.toLocaleDateString()} (day number: ${filterDayNum})`);
-          
-          filtered = data.filter(d => {
-            const txDate = new Date(d.TransactionDate);
-            const txDayNum = +d3.timeDay(txDate);
-            return txDayNum === filterDayNum;
-          });
-        }
-        break;
-      default:
-        console.log(`CircleBipartite: Unknown filter type: ${circleFilters.type}`);
-        // Use all data if filter type is unknown
-        filtered = data;
-    }
-    
-    console.log(`CircleBipartite: Applied ${circleFilters.type} filter, data size: ${filtered.length}`);
-    if (filtered.length === 0) {
-      console.log("CircleBipartite: Warning - filter resulted in empty dataset");
+    // For city filtering - the most common case
+    if (circleFilters.type === "city") {
+      const cityName = circleFilters.value;
+      
+      // Try with the exact city name as-is
+      let cityMatches = data.filter(d => 
+        (d.city === cityName) || (d.Location === cityName)
+      );
+      
+      // If no exact matches, try case-insensitive
+      if (cityMatches.length === 0) {
+        const normalizedCityName = cityName.toLowerCase().trim();
+        
+        cityMatches = data.filter(d => 
+          (d.city && d.city.toLowerCase().trim() === normalizedCityName) || 
+          (d.Location && d.Location.toLowerCase().trim() === normalizedCityName)
+        );
+      }
+      
+      // If we found matches, use them
+      if (cityMatches.length > 0) {
+        setFilteredData(cityMatches);
+      } else {
+        // As a last resort, show all data
+        setFilteredData(data);
+      }
     } else {
-      console.log("CircleBipartite: Sample filtered data:", filtered.slice(0, 3));
+      // Fallback to standard filtering for other types
+      setFilteredData(data);
     }
     
-    setFilteredData(filtered);
+    // Force redraw by incrementing counter
+    setUpdateCounter(prev => prev + 1);
   }, [data, circleFilters]);
 
-  // Main visualization effect
+  // Add a global dragend listener to ensure we catch all drag operations
   useEffect(() => {
-    const dataToUse = filteredData || data;
-    if (!dataToUse || dataToUse.length === 0) return;
-
-    console.log(`CircleBipartite: Rendering with ${dataToUse.length} records`);
-
-    // 1) Aggregate transactions by (City, Merchant) => frequency
-    const pairCount = d3.rollup(
-      dataToUse,
-      (v) => v.length,
-      (d) => d.Location,     // city
-      (d) => d.MerchantID    // merchant
-    );
-
-    // Build sets for city, merchant
-    const citySet = new Set();
-    const merchantSet = new Set();
-    const links = [];
-
-    // Also track each city->merchant freq
-    for (const [city, merchantsMap] of pairCount.entries()) {
-      citySet.add(city);
-      for (const [mer, freq] of merchantsMap.entries()) {
-        merchantSet.add(mer);
-        if (freq >= minFreq) {
-          links.push({ city, mer, freq });
+    const handleGlobalDragEnd = (e) => {
+      console.log("GLOBAL DRAG END DETECTED");
+      
+      // If we have an active filter and the drag ends anywhere,
+      // check if it's outside our component and clear the filter
+      if (circleFilters) {
+        // Get our component's boundaries
+        const componentRect = document.getElementById(id)?.getBoundingClientRect();
+        
+        if (componentRect) {
+          // Check if the drag ended outside our component
+          if (
+            e.clientX < componentRect.left || 
+            e.clientX > componentRect.right ||
+            e.clientY < componentRect.top || 
+            e.clientY > componentRect.bottom
+          ) {
+            console.log("GLOBAL DRAG END - Outside component, clearing filter");
+            setCircleFilters(null);
+          }
         }
-      }
-    }
-
-    const cities = Array.from(citySet).sort();    // optional sort for stable layout
-    const merchants = Array.from(merchantSet).sort();
-
-    console.log(`CircleBipartite: Found ${cities.length} cities and ${merchants.length} merchants`);
-    console.log(`CircleBipartite: Generated ${links.length} links`);
-
-    // 2) We'll place city nodes on an inner circle, merchant nodes on an outer circle
-    //    We store node objects with (x, y, radius, angle)
-    const cityNodes = cities.map((c, i) => {
-      const angle = (2 * Math.PI * i) / cities.length; // distribute evenly
-      return {
-        id: c,
-        type: "city",
-        angle,
-        r: innerRadius,
-      };
-    });
-
-    const merchantNodes = merchants.map((m, i) => {
-      const angle = (2 * Math.PI * i) / merchants.length; // distribute evenly
-      return {
-        id: m,
-        type: "merchant",
-        angle,
-        r: outerRadius,
-      };
-    });
-
-    // Combine
-    const nodes = [...cityNodes, ...merchantNodes];
-
-    // 3) Link thickness scale
-    const maxFreq = d3.max(links, (d) => d.freq) || 1;
-    const linkWidthScale = d3.scaleSqrt().domain([1, maxFreq]).range([0.5, 4]);
-
-    // 4) For quick lookup of node coords
-    //    We'll store them in a map: nodeMap[nodeID] => { x, y }
-    const nodeMap = {};
-    // Convert polar to Cartesian
-    nodes.forEach((nd) => {
-      const x = nd.r * Math.cos(nd.angle);
-      const y = nd.r * Math.sin(nd.angle);
-      nodeMap[nd.id] = { ...nd, x, y };
-    });
-
-    // 5) Setup the SVG
-    const svg = d3.select(svgRef.current);
-    svg.selectAll("*").remove();
-
-    svg
-      .attr("viewBox", [-width / 2, -height / 2, width, height])
-      .attr("preserveAspectRatio", "xMidYMid meet");
-      
-    // Add filter indicator if filters are applied
-    if (circleFilters) {
-      svg.append("text")
-        .attr("x", -width / 2 + 10)
-        .attr("y", -height / 2 + 20)
-        .attr("fill", "#333")
-        .style("font-size", "12px")
-        .style("font-weight", "bold")
-        .text(`Filtered by: ${circleFilters.label}`);
-      
-      // Add reset button
-      svg.append("text")
-        .attr("x", -width / 2 + 10)
-        .attr("y", -height / 2 + 40)
-        .attr("fill", "#f44336")
-        .style("font-size", "10px")
-        .style("cursor", "pointer")
-        .text("× Clear filter")
-        .on("click", () => setCircleFilters(null));
-    }
-
-    // 6) Draw links
-    const linkGroup = svg
-      .append("g")
-      .attr("stroke", "#999")
-      .attr("stroke-opacity", 0.6);
-
-    linkGroup
-      .selectAll("line")
-      .data(links)
-      .enter()
-      .append("line")
-      .attr("stroke-width", (d) => linkWidthScale(d.freq))
-      .attr("x1", (d) => nodeMap[d.city].x)
-      .attr("y1", (d) => nodeMap[d.city].y)
-      .attr("x2", (d) => nodeMap[d.mer].x)
-      .attr("y2", (d) => nodeMap[d.mer].y);
-
-    // 7) Draw nodes
-    const nodeGroup = svg.append("g").attr("stroke", "#fff").attr("stroke-width", 1.5);
-
-    nodeGroup
-      .selectAll("circle")
-      .data(nodes)
-      .enter()
-      .append("circle")
-      .attr("r", 6)
-      .attr("cx", (d) => nodeMap[d.id].x)
-      .attr("cy", (d) => nodeMap[d.id].y)
-      .attr("fill", (d) => (d.type === "city" ? "#4E79A7" : "#F28E2B"));
-
-    // 8) Labels (optional, can be cluttered)
-    const labelGroup = svg.append("g").attr("font-size", 10).attr("fill", "#333");
-
-    labelGroup
-      .selectAll("text")
-      .data(nodes)
-      .enter()
-      .append("text")
-      .text((d) => d.id)
-      .attr("x", (d) => nodeMap[d.id].x)
-      .attr("y", (d) => nodeMap[d.id].y)
-      .attr("dx", 8)
-      .attr("dy", "0.35em");
-
-    // Drop zone indicator that appears when dragging starts
-    const dropZoneOverlay = svg.append("rect")
-      .attr("x", -width / 2)
-      .attr("y", -height / 2)
-      .attr("width", width)
-      .attr("height", height)
-      .attr("fill", "none")
-      .attr("stroke", "#3498db")
-      .attr("stroke-width", 3)
-      .attr("stroke-dasharray", "10,5")
-      .attr("rx", 10)
-      .attr("ry", 10)
-      .attr("opacity", 0);
-      
-    // Show drop zone when dragging starts (global event handled by App)
-    const handleDragStart = (e) => {
-      // Check if this is a filter drag by looking for dataTransfer data
-      const dragData = e.dataTransfer?.getData("application/json");
-      let isFilterDrag = false;
-      
-      if (dragData) {
-        try {
-          const data = JSON.parse(dragData);
-          // If this is a filter drag operation, show the drop zone
-          isFilterDrag = data.dragAction === "filter";
-        } catch (err) {
-          // If parsing fails, assume it's not a filter drag
-          console.error("Error parsing drag data:", err);
-        }
-      }
-      
-      // Only show the visual feedback if it's a filter drag
-      if (isFilterDrag) {
-        dropZoneOverlay.transition().duration(300).attr("opacity", 0.5);
-      } else {
-        // For regular copy operations, don't show the blue outline
-        dropZoneOverlay.attr("opacity", 0);
       }
     };
     
-    const handleDragEnd = () => {
-      dropZoneOverlay.transition().duration(300).attr("opacity", 0);
-    };
+    // Add the global event listener
+    document.addEventListener('dragend', handleGlobalDragEnd);
     
-    document.addEventListener("dragstart", handleDragStart);
-    document.addEventListener("dragend", handleDragEnd);
-
-    // No force simulation => no tick updates needed
+    // Remove the listener when component unmounts
     return () => {
-      document.removeEventListener("dragstart", handleDragStart);
-      document.removeEventListener("dragend", handleDragEnd);
+      document.removeEventListener('dragend', handleGlobalDragEnd);
     };
-  }, [filteredData, data, width, height, innerRadius, outerRadius, minFreq, circleFilters, setCircleFilters]);
+  }, [id, circleFilters, setCircleFilters]);
+
+  // Single render effect that handles visualization updates
+  useEffect(() => {
+    // Skip if no data
+    if (!data || data.length === 0) {
+      return;
+    }
+    
+    // Use filtered data if available, otherwise use full dataset
+    const dataToUse = filteredData || data;
+
+    try {
+      // Get a reference to the SVG element
+      const svg = d3.select(svgRef.current);
+      // Clear any existing content
+      svg.selectAll("*").remove();
+      
+      // Set up the SVG viewport
+      svg
+        .attr("viewBox", [-width / 2, -height / 2, width, height])
+        .attr("preserveAspectRatio", "xMidYMid meet");
+
+      // 1) Aggregate transactions by (City, Merchant) => frequency
+      const pairCount = d3.rollup(
+        dataToUse,
+        (v) => v.length,
+        (d) => d.Location || d.city || "Unknown",  // city
+        (d) => d.MerchantID // merchant
+      );
+
+      // Build sets for city, merchant
+      const citySet = new Set();
+      const merchantSet = new Set();
+      const links = [];
+
+      // Also track each city->merchant freq
+      for (const [city, merchantsMap] of pairCount.entries()) {
+        citySet.add(city);
+        for (const [mer, freq] of merchantsMap.entries()) {
+          merchantSet.add(mer);
+          if (freq >= minFreq) {
+            links.push({ city, mer, freq });
+          }
+        }
+      }
+
+      const cities = Array.from(citySet).sort(); // optional sort for stable layout
+      const merchants = Array.from(merchantSet).sort();
+
+      // FOCUSED DEBUG: Log filtered cities and links 
+      if (circleFilters && circleFilters.type === "city") {
+        console.log("AFTER FILTERING - Cities found:", cities);
+        console.log("AFTER FILTERING - Links found:", links.length);
+      }
+
+      console.log(
+        `CircleBipartite: Found ${cities.length} cities and ${merchants.length} merchants`
+      );
+      console.log(`CircleBipartite: Generated ${links.length} links`);
+      
+      // Debug: Show the actual city and merchant values found
+      console.log("Cities found:", cities);
+      console.log("First 5 links:", links.slice(0, 5));
+
+      // 2) We'll place city nodes on an inner circle, merchant nodes on an outer circle
+      //    We store node objects with (x, y, radius, angle)
+      const cityNodes = cities.map((c, i) => {
+        const angle = (2 * Math.PI * i) / cities.length; // distribute evenly
+        return {
+          id: c,
+          type: "city",
+          angle,
+          r: innerRadius,
+        };
+      });
+
+      const merchantNodes = merchants.map((m, i) => {
+        const angle = (2 * Math.PI * i) / merchants.length; // distribute evenly
+        return {
+          id: m,
+          type: "merchant",
+          angle,
+          r: outerRadius,
+        };
+      });
+
+      // Combine
+      const nodes = [...cityNodes, ...merchantNodes];
+
+      // 3) Link thickness scale
+      const maxFreq = d3.max(links, (d) => d.freq) || 1;
+      const linkWidthScale = d3.scaleSqrt().domain([1, maxFreq]).range([0.5, 4]);
+
+      // 4) For quick lookup of node coords
+      //    We'll store them in a map: nodeMap[nodeID] => { x, y }
+      const nodeMap = {};
+      // Convert polar to Cartesian
+      nodes.forEach((nd) => {
+        const x = nd.r * Math.cos(nd.angle);
+        const y = nd.r * Math.sin(nd.angle);
+        nodeMap[nd.id] = { ...nd, x, y };
+      });
+
+      // Add filter indicator if filters are applied
+      if (circleFilters) {
+        svg
+          .append("text")
+          .attr("x", -width / 2 + 10)
+          .attr("y", -height / 2 + 20)
+          .attr("fill", "#333")
+          .style("font-size", "12px")
+          .style("font-weight", "bold")
+          .text(`Filtered by: ${circleFilters.label}`);
+
+        // Add reset button
+        svg
+          .append("text")
+          .attr("x", -width / 2 + 10)
+          .attr("y", -height / 2 + 40)
+          .attr("fill", "#f44336")
+          .style("font-size", "10px")
+          .style("cursor", "pointer")
+          .text("× Clear filter")
+          .on("click", () => setCircleFilters(null));
+      }
+
+      // 6) Draw links
+      const linkGroup = svg
+        .append("g")
+        .attr("stroke", "#999")
+        .attr("stroke-opacity", 0.6);
+
+      linkGroup
+        .selectAll("line")
+        .data(links)
+        .enter()
+        .append("line")
+        .attr("stroke-width", (d) => linkWidthScale(d.freq))
+        .attr("x1", (d) => nodeMap[d.city].x)
+        .attr("y1", (d) => nodeMap[d.city].y)
+        .attr("x2", (d) => nodeMap[d.mer].x)
+        .attr("y2", (d) => nodeMap[d.mer].y);
+
+      // 7) Draw nodes
+      const nodeGroup = svg
+        .append("g")
+        .attr("stroke", "#fff")
+        .attr("stroke-width", 1.5);
+
+      nodeGroup
+        .selectAll("circle")
+        .data(nodes)
+        .enter()
+        .append("circle")
+        .attr("r", 6)
+        .attr("cx", (d) => nodeMap[d.id].x)
+        .attr("cy", (d) => nodeMap[d.id].y)
+        .attr("fill", (d) => (d.type === "city" ? "#4E79A7" : "#F28E2B"));
+
+      // 8) Labels
+      const labelGroup = svg
+        .append("g")
+        .attr("font-size", 10)
+        .attr("fill", "#333");
+
+      labelGroup
+        .selectAll("text")
+        .data(nodes)
+        .enter()
+        .append("text")
+        .text((d) => d.id)
+        .attr("x", (d) => nodeMap[d.id].x)
+        .attr("y", (d) => nodeMap[d.id].y)
+        .attr("dx", 8)
+        .attr("dy", "0.35em");
+    } catch (error) {
+      console.error("Error rendering Circle Bipartite:", error);
+    }
+  }, [filteredData, data, width, height, innerRadius, outerRadius, minFreq, circleFilters, setCircleFilters, updateCounter]);
 
   // Setup drop zone event handlers
   const handleDragOver = (e) => {
     e.preventDefault();
   };
-  
+
+  // NEW: Handle elements being dragged out of the component
+  const handleDragLeave = (e) => {
+    // Make sure it's actually leaving the component (not just entering a child element)
+    if (e.currentTarget === e.target) {
+      console.log("DRAG LEAVE - Element dragged out of CircleBipartite");
+      
+      // Clear the filter when element is dragged away
+      if (circleFilters) {
+        console.log("DRAG LEAVE - Clearing filters");
+        setCircleFilters(null);
+      }
+    }
+  };
+
   return (
-    <div 
+    <div
       id={id}
       className={className}
       style={{ width: "100%", height: "100%" }}
       onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
       onDrop={(e) => {
         e.preventDefault();
-        console.log("DROP EVENT TRIGGERED on CircleBipartite");
-        
-        // Debug all available data transfer types
-        const types = e.dataTransfer.types || [];
-        console.log("Available dataTransfer types:", Array.from(types));
-        
-        // Extract data from the drop event
+        console.log("DROP EVENT START - Container received drop");
+
         try {
-          const containerBox = svgRef.current.getBoundingClientRect();
+          // Capture the drop zone element
           const dropZone = e.currentTarget;
+          console.log("DROP EVENT - Target ID:", dropZone.id);
           
-          console.log("Drop zone found:", dropZone.id);
+          // Get the bounding box for positioning
+          const containerBox = svgRef.current.getBoundingClientRect();
           
-          // Try to get data from dataTransfer
-          let jsonData = null;
-          try {
-            jsonData = e.dataTransfer.getData("application/json");
-            console.log("CircleBipartite: Raw JSON data received:", jsonData);
-          } catch (jsonError) {
-            console.error("Error getting JSON data:", jsonError);
-          }
+          // Try to get the JSON data
+          const jsonData = e.dataTransfer.getData("application/json");
           
           if (jsonData) {
             try {
+              // Parse the JSON data
               const nodeData = JSON.parse(jsonData);
-              console.log("CircleBipartite: Successfully parsed node data:", nodeData);
-              console.log("Node data type:", nodeData.type);
-              console.log("Node data dragAction:", nodeData.dragAction);
+              console.log("DROP EVENT - Parsed node data:", { 
+                type: nodeData.type, 
+                city: nodeData.city,
+                state: nodeData.state
+              });
+              
+              // DIRECT HANDLING FOR GEO CIRCLES: Bypass the handler chain
+              if (nodeData.type === "geoCircle" && nodeData.city) {
+                console.log("DROP EVENT - Direct handling of geoCircle");
+                
+                // Create filter directly from the node data
+                const filter = {
+                  type: "city",
+                  value: nodeData.city,
+                  label: `City: ${nodeData.city}`,
+                  _directDrop: true, // Special flag to identify this source
+                  _timestamp: Date.now()
+                };
+                
+                // Use the direct component reference to setCircleFilters
+                console.log("DROP EVENT - Direct filter application:", filter);
+                setCircleFilters(filter);
+                
+                // Force update counter to trigger re-render
+                setUpdateCounter(prev => prev + 1000);
+                
+                return;
+              }
+              
+              // If not a geoCircle, pass to the standard handler path
               customDropHandler(nodeData, containerBox, dropZone);
             } catch (parseError) {
-              console.error("Error parsing JSON:", parseError);
-              console.log("Invalid JSON data:", jsonData);
+              console.error("DROP EVENT ERROR - Failed to parse JSON:", parseError);
             }
           } else {
-            console.log("CircleBipartite: No JSON data found in drop event");
-            console.log("dataTransfer object:", e.dataTransfer);
+            console.log("DROP EVENT - No JSON data found in drop event");
             
-            // Try other formats as fallback
-            if (e.dataTransfer.getData("text")) {
-              console.log("Text data found:", e.dataTransfer.getData("text"));
+            // Check for other formats
+            const availableTypes = Array.from(e.dataTransfer.types || []);
+            console.log("DROP EVENT - Available data types:", availableTypes);
+            
+            if (availableTypes.includes('text/plain')) {
+              console.log("DROP EVENT - Text data:", e.dataTransfer.getData('text/plain'));
             }
           }
         } catch (error) {
-          console.error("Error handling drop in CircleBipartite:", error);
+          console.error("DROP EVENT ERROR - General error in drop handler:", error);
         }
       }}
     >
+      {/* Simple SVG element without a key to prevent remounting */}
       <svg ref={svgRef} style={{ width: "100%", height: "100%" }} />
+      
+      {/* Debug info panel */}
+      <div style={{
+        position: 'absolute',
+        bottom: 10,
+        left: 10,
+        background: 'rgba(255,255,255,0.8)',
+        padding: '5px',
+        fontSize: '10px',
+        zIndex: 100,
+        borderRadius: '4px'
+      }}>
+        <div>Update counter: {updateCounter}</div>
+        <div>Filtered data: {filteredData ? filteredData.length : 'none'} records</div>
+        <div>Filter: {circleFilters ? `${circleFilters.type}:${circleFilters.value}` : 'none'}</div>
+        
+        {/* Test buttons for direct filtering */}
+        <div style={{marginTop: '5px', display: 'flex', gap: '5px'}}>
+          <button
+            onClick={() => {
+              // Simple direct filtering without timeout or manipulation
+              console.log("BUTTON CLICK - Creating Miami filter");
+              
+              const filter = {
+                type: "city",
+                value: "Miami",
+                label: "City: Miami"
+              };
+              
+              console.log("BUTTON CLICK - Setting filter:", filter);
+              setCircleFilters(filter);
+            }}
+            style={{fontSize: '8px', padding: '2px 4px'}}
+          >
+            Filter Miami
+          </button>
+          
+          <button
+            onClick={() => {
+              setCircleFilters(null);
+            }}
+            style={{fontSize: '8px', padding: '2px 4px'}}
+          >
+            Clear Filter
+          </button>
+        </div>
+      </div>
+      
       {circleFilters && (
-        <div style={{
-          position: "absolute",
-          top: 10,
-          right: 10,
-          background: "rgba(255,255,255,0.8)",
-          padding: "5px 10px",
-          borderRadius: "5px",
-          fontSize: "12px",
-          display: "flex",
-          alignItems: "center",
-          gap: "5px"
-        }}>
+        <div
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            background: "rgba(255,255,255,0.8)",
+            padding: "5px 10px",
+            borderRadius: "5px",
+            fontSize: "12px",
+            display: "flex",
+            alignItems: "center",
+            gap: "5px",
+          }}
+        >
           <span>{circleFilters.label}</span>
           <button
             onClick={() => setCircleFilters(null)}
@@ -393,7 +570,7 @@ function CircleBipartite({
               cursor: "pointer",
               color: "#f44336",
               fontWeight: "bold",
-              fontSize: "14px"
+              fontSize: "14px",
             }}
           >
             ×

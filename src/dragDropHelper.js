@@ -142,6 +142,20 @@ function dragEndedAbs(event, d) {
   // Only filter drags should look for CircleBipartite
   const dropZone = detectDropZone(containerBox, d.dragAction === "filter");
   
+  // Signal drag end - this is critical for the "drag out" behavior
+  // When a drag ends, we need to notify the system regardless of where it ended
+  if (d.nodeData?.type === "geoCircle" && d.dragAction === "filter") {
+    // Find the setDroppedItem from the window if it's available
+    if (window.setDroppedItem) {
+      console.log("DRAG ENDED - Signaling drag end event");
+      window.setDroppedItem({
+        action: "dragend",
+        data: d.nodeData,
+        timestamp: Date.now()
+      });
+    }
+  }
+  
   // Only pass to callback if it's a filter drag and the drop zone is CircleBipartite,
   // or if it's not a filter drag (normal drag)
   if (d.onDragEndCallback) {

@@ -12,7 +12,7 @@ export function DataProvider({ children }) {
     // Load the CSV file from the public folder
     d3.csv(process.env.PUBLIC_URL + '/bank_transactions_data_2.csv')
       .then((loadedData) => {
-        console.log("Data loaded:", typeof loadedData, loadedData[0]);
+        // console.log("Data loaded:", typeof loadedData, loadedData[0]);
         setData(loadedData);
       })
       .catch(err => console.error("Error loading CSV data:", err));

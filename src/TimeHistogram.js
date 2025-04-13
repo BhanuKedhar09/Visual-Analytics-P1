@@ -139,17 +139,17 @@ function TimeHistogram({
     });
 
     // Debug the mappings
-    console.log("Day to Cities mapping:", {
-      totalDays: Object.keys(dtc).length,
-      sampleDay: Object.entries(dtc)[0],
-      allDays: Object.keys(dtc).slice(0, 5),
-    });
+    // console.log("Day to Cities mapping:", {
+    //   totalDays: Object.keys(dtc).length,
+    //   sampleDay: Object.entries(dtc)[0],
+    //   allDays: Object.keys(dtc).slice(0, 5),
+    // });
 
-    console.log("Day to States mapping:", {
-      totalDays: Object.keys(dts).length,
-      sampleDay: Object.entries(dts)[0],
-      allDays: Object.keys(dts).slice(0, 5),
-    });
+    // console.log("Day to States mapping:", {
+    //   totalDays: Object.keys(dts).length,
+    //   sampleDay: Object.entries(dts)[0],
+    //   allDays: Object.keys(dts).slice(0, 5),
+    // });
 
     // Now let's reverse it to get cityToDays
     const ctd = {};
@@ -186,29 +186,29 @@ function TimeHistogram({
     // Set cityToDays in context too
     if (typeof setCityToDays === "function") {
       setCityToDays(ctd);
-      console.log("CRITICAL DEBUG - TimeHistogram setting cityToDays:", ctd);
-      console.log(
-        "CRITICAL DEBUG - Sample city entries:",
-        Object.entries(ctd)
-          .slice(0, 3)
-          .map(([city, daySet]) => {
-            return {
-              city,
-              days: Array.from(daySet).slice(0, 5),
-              dayCount: daySet.size,
-              type: typeof daySet,
-              isSet: daySet instanceof Set,
-            };
-          })
-      );
+      // console.log("CRITICAL DEBUG - TimeHistogram setting cityToDays:", ctd);
+      // console.log(
+      //   "CRITICAL DEBUG - Sample city entries:",
+      //   Object.entries(ctd)
+      //     .slice(0, 3)
+      //     .map(([city, daySet]) => {
+      //       return {
+      //         city,
+      //         days: Array.from(daySet).slice(0, 5),
+      //         dayCount: daySet.size,
+      //         type: typeof daySet,
+      //         isSet: daySet instanceof Set,
+      //       };
+      //     })
+      // );
     }
 
     if (typeof setCityToDaysGlobal === "function") {
       setCityToDaysGlobal(ctd);
-      console.log(
-        "CRITICAL DEBUG - TimeHistogram setting cityToDaysGlobal:",
-        ctd
-      );
+      // console.log(
+      //   "CRITICAL DEBUG - TimeHistogram setting cityToDaysGlobal:",
+      //   ctd
+      // );
     }
 
     // Draw the stacked bars

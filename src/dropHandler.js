@@ -1,11 +1,10 @@
-// dropHandler.js
 import { InteractionContext } from "./InteractionContext";
 import { useContext } from "react";
 
-// Note: Since drop handling needs access to the context setters, we implement
-// a function that accepts the context setters as parameters and returns a drop handler.
-// This way, each component can call this function with its context values.
-
+// Note: Since drop handling needs access to the context setters,
+// we implement a function that accepts the context setters as parameters
+// and returns a drop handler. This way, each component can call this
+// function with its context values.
 export function createDropHandler({
   // Map view highlight setters:
   setHighlightedState,
@@ -17,12 +16,21 @@ export function createDropHandler({
   setSankeyHighlightedState,
   sankeyHighlightedCity,
   setSankeyHighlightedCity,
-  // New: Circle Bipartite filter setter
-  setCircleFilters = () => {}, // Default empty function if not provided
+  // New: Circle Bipartite filter setter (passed in from the component)
+  setCircleFilters = () => {}, // Default to empty function if not provided
+  // NEW: Direct dropped item state setter
+  setDroppedItem = () => {}, // Default to empty function if not provided
 }) {
   return function handleDrop(nodeData, containerBox, dropZone) {
-    console.log("dropHandler: handleDrop called with nodeData:", nodeData);
-    console.log("dropHandler: dropZone:", dropZone?.id);
+    // FOCUSED DEBUG: Log the node data and drop zone at entry point
+    if (dropZone?.id === "circle-bipartite") {
+      console.log("DROP HANDLER ENTRY:", { 
+        nodeType: nodeData.type,
+        hasCity: !!nodeData.city,
+        city: nodeData.city,
+        dropZoneId: dropZone?.id
+      });
+    }
     
     if (!dropZone) {
       console.log("dropHandler: No drop zone found, clearing highlights");
@@ -37,14 +45,12 @@ export function createDropHandler({
 
     // Use dropZone.id to determine which view is the target.
     if (dropZone.id === "geo-map") {
-      // Clear any time graph highlights
+      // Clear any time graph and sankey highlights
       setTimeHighlightedState(null);
       setTimeHighlightedCity(null);
-      // Clear any sankey highlights
       setSankeyHighlightedState(null);
       setSankeyHighlightedCity(null);
       if (nodeData.type === "sankeyNode") {
-        // For other types (e.g., from Sankey), use layer property.
         if (nodeData.layer === 0) {
           setHighlightedState(nodeData.name);
         } else if (nodeData.layer === 1) {
@@ -52,12 +58,10 @@ export function createDropHandler({
         }
       }
     } else if (dropZone.id === "time-graph") {
-      // Clear map highlights
       setHighlightedState(null);
       setHighlightedCity(null);
       setTimeHighlightedState(null);
       setTimeHighlightedCity(null);
-    //   setSankeyHighlightedState(null);
       setSankeyHighlightedState(null);
       setSankeyHighlightedCity(null);
       if (nodeData.type === "geoCircle") {
@@ -70,7 +74,6 @@ export function createDropHandler({
         }
       }
     } else if (dropZone.id === "sankey") {
-      // Clear other highlights if needed
       setHighlightedState(null);
       setHighlightedCity(null);
       setTimeHighlightedState(null);
@@ -87,10 +90,10 @@ export function createDropHandler({
           setSankeyHighlightedCity(nodeData.name);
         }
       }
-    } 
-    // New condition for CircleBipartite
+    }
+    // Process drop for CircleBipartite view
     else if (dropZone.id === "circle-bipartite") {
-      console.log("dropHandler: Processing drop on CircleBipartite");
+      console.log("DROP HANDLER - Setting droppedItem for CircleBipartite");
       
       // Clear other highlights if needed
       setHighlightedState(null);
@@ -100,61 +103,69 @@ export function createDropHandler({
       setSankeyHighlightedState(null);
       setSankeyHighlightedCity(null);
 
-      // Apply filter based on node type
+      // NEW: Simply update the droppedItem state directly
+      // with the raw nodeData - let CircleBipartite handle filtering
+      setDroppedItem({
+        data: nodeData,
+        dropZone: "circle-bipartite",
+        timestamp: Date.now()
+      });
+      
+      // Original filter logic kept for backward compatibility
       try {
         if (nodeData.type === "geoCircle") {
-          // Filter by city
-          console.log("dropHandler: Setting circle filter to city:", nodeData.city);
-          setCircleFilters({
+          // FOCUSED DEBUG: Log the exact city value we're filtering by
+          console.log("SETTING FILTER - City value:", nodeData.city);
+          
+          const filter = {
             type: "city",
             value: nodeData.city,
-            label: `City: ${nodeData.city}`
-          });
+            label: `City: ${nodeData.city}`,
+            _updatedAt: Date.now()
+          };
+          
+          console.log("FINAL FILTER OBJECT:", filter);
+          setCircleFilters(filter);
         } else if (nodeData.type === "sankeyNode") {
           if (nodeData.layer === 0) {
-            // Filter by state
-            console.log("dropHandler: Setting circle filter to state:", nodeData.name);
             setCircleFilters({
               type: "state",
               value: nodeData.name,
-              label: `State: ${nodeData.name}`
+              label: `State: ${nodeData.name}`,
+              _updatedAt: Date.now()
             });
           } else if (nodeData.layer === 1) {
-            // Filter by city from Sankey
-            console.log("dropHandler: Setting circle filter to city from Sankey:", nodeData.name);
             setCircleFilters({
               type: "city",
               value: nodeData.name,
-              label: `City: ${nodeData.name}`
+              label: `City: ${nodeData.name}`,
+              _updatedAt: Date.now()
             });
           } else if (nodeData.layer === 2) {
-            // Filter by occupation
-            console.log("dropHandler: Setting circle filter to occupation:", nodeData.name);
             setCircleFilters({
               type: "occupation",
               value: nodeData.name,
-              label: `Occupation: ${nodeData.name}`
+              label: `Occupation: ${nodeData.name}`,
+              _updatedAt: Date.now()
             });
           } else if (nodeData.layer === 3) {
-            // Filter by merchant
-            console.log("dropHandler: Setting circle filter to merchant:", nodeData.name);
             setCircleFilters({
               type: "merchant",
               value: nodeData.name,
-              label: `Merchant: ${nodeData.name}`
+              label: `Merchant: ${nodeData.name}`,
+              _updatedAt: Date.now()
             });
           }
         } else if (nodeData.type === "timeBar") {
-          // Filter by date
           const dateStr = nodeData.date ? nodeData.date.toLocaleDateString() : "Unknown date";
-          console.log("dropHandler: Setting circle filter to date:", dateStr);
           setCircleFilters({
             type: "date",
             value: nodeData.date,
-            label: `Date: ${dateStr}`
+            label: `Date: ${dateStr}`,
+            _updatedAt: Date.now()
           });
         } else {
-          console.log("dropHandler: Unknown node type:", nodeData.type);
+          console.log("Unknown node type:", nodeData.type);
         }
       } catch (error) {
         console.error("Error setting circle filters:", error);
