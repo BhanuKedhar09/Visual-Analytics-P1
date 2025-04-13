@@ -370,9 +370,19 @@ function CircleBipartite({
         .attr("stroke", "#fff")
         .attr("stroke-width", 1.5);
 
+      // Create a set of nodes that have connections
+      const connectedNodesSet = new Set();
+      links.forEach(link => {
+        connectedNodesSet.add(link.city);
+        connectedNodesSet.add(link.mer);
+      });
+
+      // Filter nodes to only include those with connections
+      const connectedNodes = nodes.filter(node => connectedNodesSet.has(node.id));
+
       nodeGroup
         .selectAll("circle")
-        .data(nodes)
+        .data(connectedNodes)
         .enter()
         .append("circle")
         .attr("r", 6)
@@ -388,7 +398,7 @@ function CircleBipartite({
 
       labelGroup
         .selectAll("text")
-        .data(nodes)
+        .data(connectedNodes)
         .enter()
         .append("text")
         .text((d) => d.id)
@@ -498,53 +508,6 @@ function CircleBipartite({
     >
       {/* Simple SVG element without a key to prevent remounting */}
       <svg ref={svgRef} style={{ width: "100%", height: "100%" }} />
-      
-      {/* Debug info panel */}
-      <div style={{
-        position: 'absolute',
-        bottom: 10,
-        left: 10,
-        background: 'rgba(255,255,255,0.8)',
-        padding: '5px',
-        fontSize: '10px',
-        zIndex: 100,
-        borderRadius: '4px'
-      }}>
-        <div>Update counter: {updateCounter}</div>
-        <div>Filtered data: {filteredData ? filteredData.length : 'none'} records</div>
-        <div>Filter: {circleFilters ? `${circleFilters.type}:${circleFilters.value}` : 'none'}</div>
-        
-        {/* Test buttons for direct filtering */}
-        <div style={{marginTop: '5px', display: 'flex', gap: '5px'}}>
-          <button
-            onClick={() => {
-              // Simple direct filtering without timeout or manipulation
-              console.log("BUTTON CLICK - Creating Miami filter");
-              
-              const filter = {
-                type: "city",
-                value: "Miami",
-                label: "City: Miami"
-              };
-              
-              console.log("BUTTON CLICK - Setting filter:", filter);
-              setCircleFilters(filter);
-            }}
-            style={{fontSize: '8px', padding: '2px 4px'}}
-          >
-            Filter Miami
-          </button>
-          
-          <button
-            onClick={() => {
-              setCircleFilters(null);
-            }}
-            style={{fontSize: '8px', padding: '2px 4px'}}
-          >
-            Clear Filter
-          </button>
-        </div>
-      </div>
       
       {circleFilters && (
         <div
