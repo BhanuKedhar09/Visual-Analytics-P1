@@ -284,32 +284,32 @@ useEffect(() => {
         .attr("viewBox", [-width / 2, -height / 2, width, height])
         .attr("preserveAspectRatio", "xMidYMid meet");
 
-      // 1) Aggregate transactions by (City, Merchant) => frequency
-      const pairCount = d3.rollup(
-        dataToUse,
-        (v) => v.length,
+    // 1) Aggregate transactions by (City, Merchant) => frequency
+    const pairCount = d3.rollup(
+      dataToUse,
+      (v) => v.length,
         (d) => d.Location || d.city || "Unknown",  // city
-        (d) => d.MerchantID // merchant
-      );
+      (d) => d.MerchantID // merchant
+    );
 
-      // Build sets for city, merchant
-      const citySet = new Set();
-      const merchantSet = new Set();
-      const links = [];
+    // Build sets for city, merchant
+    const citySet = new Set();
+    const merchantSet = new Set();
+    const links = [];
 
-      // Also track each city->merchant freq
-      for (const [city, merchantsMap] of pairCount.entries()) {
-        citySet.add(city);
-        for (const [mer, freq] of merchantsMap.entries()) {
-          merchantSet.add(mer);
-          if (freq >= minFreq) {
-            links.push({ city, mer, freq });
-          }
+    // Also track each city->merchant freq
+    for (const [city, merchantsMap] of pairCount.entries()) {
+      citySet.add(city);
+      for (const [mer, freq] of merchantsMap.entries()) {
+        merchantSet.add(mer);
+        if (freq >= minFreq) {
+          links.push({ city, mer, freq });
         }
       }
+    }
 
-      const cities = Array.from(citySet).sort(); // optional sort for stable layout
-      const merchants = Array.from(merchantSet).sort();
+    const cities = Array.from(citySet).sort(); // optional sort for stable layout
+    const merchants = Array.from(merchantSet).sort();
 
       // FOCUSED DEBUG: Log filtered cities and links 
       if (circleFilters) {
@@ -317,11 +317,11 @@ useEffect(() => {
         console.log("AFTER FILTERING - Links found:", links.length);
       }
 
-      console.log(
-        `CircleBipartite: Found ${cities.length} cities and ${merchants.length} merchants`
-      );
-      console.log(`CircleBipartite: Generated ${links.length} links`);
-      
+    console.log(
+      `CircleBipartite: Found ${cities.length} cities and ${merchants.length} merchants`
+    );
+    console.log(`CircleBipartite: Generated ${links.length} links`);
+
       // Debug: Show the actual city and merchant values found
       console.log("Cities found:", cities);
       console.log("First 5 links:", links.slice(0, 5));
@@ -346,7 +346,7 @@ useEffect(() => {
         .filter(merchant => connectedNodesSet.has(merchant))
         .map(merchant => ({
           id: merchant,
-          type: "merchant",
+        type: "merchant",
           group: 2
         }));
 
@@ -361,9 +361,9 @@ useEffect(() => {
       }));
 
       // Link thickness scale
-      const maxFreq = d3.max(links, (d) => d.freq) || 1;
-      const linkWidthScale = d3.scaleSqrt().domain([1, maxFreq]).range([0.5, 4]);
-      
+    const maxFreq = d3.max(links, (d) => d.freq) || 1;
+    const linkWidthScale = d3.scaleSqrt().domain([1, maxFreq]).range([0.5, 4]);
+
       // Set up node radius scale based on connections
       const nodeConnections = {};
       links.forEach(link => {
@@ -393,27 +393,27 @@ useEffect(() => {
         .force("x", d3.forceX().strength(0.05))
         .force("y", d3.forceY().strength(0.05));
 
-      // Add filter indicator if filters are applied
-      if (circleFilters) {
-        svg
-          .append("text")
-          .attr("x", -width / 2 + 10)
-          .attr("y", -height / 2 + 20)
-          .attr("fill", "#333")
-          .style("font-size", "12px")
-          .style("font-weight", "bold")
+    // Add filter indicator if filters are applied
+    if (circleFilters) {
+      svg
+        .append("text")
+        .attr("x", -width / 2 + 10)
+        .attr("y", -height / 2 + 20)
+        .attr("fill", "#333")
+        .style("font-size", "12px")
+        .style("font-weight", "bold")
           .text(nodeQueue.length > 1 
             ? `Filtered by ${nodeQueue.length} items` 
             : `Filtered by: ${circleFilters.label}`);
 
-        // Add reset button
-        svg
-          .append("text")
-          .attr("x", -width / 2 + 10)
-          .attr("y", -height / 2 + 40)
-          .attr("fill", "#f44336")
-          .style("font-size", "10px")
-          .style("cursor", "pointer")
+      // Add reset button
+      svg
+        .append("text")
+        .attr("x", -width / 2 + 10)
+        .attr("y", -height / 2 + 40)
+        .attr("fill", "#f44336")
+        .style("font-size", "10px")
+        .style("cursor", "pointer")
           .text(nodeQueue.length > 1 ? "× Clear all filters" : "× Clear filter")
           .on("click", () => {
             setCircleFilters(null);
@@ -423,34 +423,34 @@ useEffect(() => {
 
       // Create element groups
       const link = svg.append("g")
-        .attr("stroke", "#999")
+      .attr("stroke", "#999")
         .attr("stroke-opacity", 0.6)
-        .selectAll("line")
+      .selectAll("line")
         .data(forceLinks)
-        .enter()
-        .append("line")
+      .enter()
+      .append("line")
         .attr("stroke-width", d => linkWidthScale(d.value));
 
       // Create node elements
       const node = svg.append("g")
-        .attr("stroke", "#fff")
+      .attr("stroke", "#fff")
         .attr("stroke-width", 1.5)
-        .selectAll("circle")
+      .selectAll("circle")
         .data(connectedNodes)
-        .enter()
-        .append("circle")
+      .enter()
+      .append("circle")
         .attr("r", d => nodeRadiusScale(nodeConnections[d.id] || 1))
         .attr("fill", d => d.type === "city" ? "#4E79A7" : "#F28E2B")
         .call(drag(simulation));
 
       // Add labels with dynamic offset based on node size
       const label = svg.append("g")
-        .attr("font-size", 10)
+      .attr("font-size", 10)
         .attr("fill", "#333")
-        .selectAll("text")
+      .selectAll("text")
         .data(connectedNodes)
-        .enter()
-        .append("text")
+      .enter()
+      .append("text")
         .text(d => d.id)
         .attr("dy", "0.35em")
         .style("pointer-events", "none");
